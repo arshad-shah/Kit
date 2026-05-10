@@ -12,7 +12,7 @@
 		"typecheck": "astro check"
 	},
 	"dependencies": {
-		"@astrojs/check": "0.9.4",
+		"@astrojs/check": "0.9.9",
 		"@astrojs/starlight": "0.30.6",
 		"@iconify-json/lucide": "^1.2.106",
 		"astro": "5.18.1",
