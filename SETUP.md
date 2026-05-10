@@ -47,13 +47,13 @@ Every PR that touches `packages/*` needs a changeset describing the user-visible
 pnpm changeset
 ```
 
-The CLI walks you through which packages changed and at what semver level. The generated markdown lands in `.changeset/` and gets consumed by the release workflow on `main`.
+The CLI walks you through which packages changed and at what semver level. The generated markdown lands in `.changeset/` and gets consumed by the release workflow on `master`.
 
 ## Release flow
 
 The release is automated via [`changesets/action`](https://github.com/changesets/action) in `.github/workflows/release.yml`. The flow:
 
-1. Merge a PR with one or more changesets to `main`.
+1. Merge a PR with one or more changesets to `master`.
 2. The release workflow opens (or updates) a "Version Packages" PR that consumes the changesets, bumps versions, and updates each package's `CHANGELOG.md`.
 3. Merging the Version Packages PR triggers npm publish via OIDC trusted publishing — there is no `NPM_TOKEN` secret. Each package must have a trusted publisher configured on npmjs.com first; see [the security ops page](apps/docs/src/content/docs/ops/security.md) for the bootstrap procedure.
 

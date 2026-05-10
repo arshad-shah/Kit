@@ -69,7 +69,7 @@ for (const pkg of PACKAGES) {
 		excludePrivate: true,
 		excludeInternal: true,
 		excludeExternals: true,
-		gitRevision: "main",
+		gitRevision: "master",
 	});
 	app.options.addReader(new TSConfigReader());
 

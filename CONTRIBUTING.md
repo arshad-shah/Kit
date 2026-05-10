@@ -62,7 +62,7 @@ PRs that only touch `apps/docs`, `packages/internal-config`, or top-level config
 
 ## Submitting a PR
 
-1. Branch from `main`.
+1. Branch from `master`.
 2. Make changes, add tests, run `pnpm ci` locally.
 3. `pnpm changeset` if `packages/*` changed.
 4. Open the PR. The PR template walks through the rest.

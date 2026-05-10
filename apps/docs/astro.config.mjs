@@ -7,20 +7,32 @@ export default defineConfig({
 		starlight({
 			title: "kit",
 			description: "Foundation packages for side projects: state and data fetching.",
-			logo: { src: "./src/assets/logo.svg", replacesTitle: false },
+			logo: { src: "./src/assets/logo.svg", replacesTitle: true },
 			social: {
 				github: "https://github.com/arshad-shah/kit",
 			},
 			customCss: ["./src/styles/terminal.css"],
 			editLink: {
-				baseUrl: "https://github.com/arshad-shah/kit/edit/main/apps/docs/",
+				baseUrl: "https://github.com/arshad-shah/kit/edit/master/apps/docs/",
 			},
 			lastUpdated: true,
 			pagination: true,
 			head: [
 				{
 					tag: "meta",
-					attrs: { name: "theme-color", content: "#0d0f14" },
+					attrs: {
+						name: "theme-color",
+						content: "#0d0f14",
+						media: "(prefers-color-scheme: dark)",
+					},
+				},
+				{
+					tag: "meta",
+					attrs: {
+						name: "theme-color",
+						content: "#ffffff",
+						media: "(prefers-color-scheme: light)",
+					},
 				},
 			],
 			sidebar: [
