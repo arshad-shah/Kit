@@ -1,0 +1,9 @@
+{
+	"extends": "@arshad-shah/internal-config/tsconfig.lib.json",
+	"compilerOptions": {
+		"outDir": "dist",
+		"rootDir": "src"
+	},
+	"include": ["src/**/*"],
+	"exclude": ["dist", "node_modules", "**/*.test.ts"]
+}

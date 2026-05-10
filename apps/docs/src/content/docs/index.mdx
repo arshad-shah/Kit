@@ -1,0 +1,48 @@
+---
+title: kit
+description: Foundation packages for side projects - typed state, data fetching, structured logging, and config loading.
+template: splash
+hero:
+  tagline: Four small packages that handle the plumbing every side project needs - so you can ship features instead of wiring up state, fetch, logging, and config from scratch.
+  actions:
+    - text: Quick start
+      link: /quick-start/
+      icon: right-arrow
+      variant: primary
+    - text: View on GitHub
+      link: https://github.com/arshad-shah/kit
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from "@astrojs/starlight/components";
+
+<CardGrid>
+  <Card title="store-kit" icon="seti:typescript">
+    Typed Zustand factory with persistence, versioned migrations, devtools, and reset. **1.4 KB gzipped.**
+
+    [Read the docs →](/store-kit/overview/)
+  </Card>
+  <Card title="fetch-kit" icon="rocket">
+    Typed HTTP client + React hooks. Retries, timeouts, schema validation, abort-on-unmount. **2.5 KB core, 0.8 KB hooks.**
+
+    [Read the docs →](/fetch-kit/overview/)
+  </Card>
+  <Card title="log-kit" icon="information">
+    Structured logger with pluggable transports (console, HTTP, file, Datadog) and perf markers. **1.4 KB core.**
+
+    [Read the docs →](/log-kit/overview/)
+  </Card>
+  <Card title="config-kit" icon="setting">
+    Typed env loading from .env, process.env, and remote sources. Schema-validated, secret-safe errors. **1.4 KB.**
+
+    [Read the docs →](/config-kit/overview/)
+  </Card>
+  <Card title="Tiny by design" icon="approve-check-circle">
+    Bundle budgets enforced in CI. No accidental growth. No deps in the hot path - just `zustand`, `zod` (optional), and your `fetch`.
+  </Card>
+  <Card title="Strict TypeScript" icon="seti:tsconfig">
+    `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, the works. The API infers - you rarely write a generic.
+  </Card>
+</CardGrid>
+

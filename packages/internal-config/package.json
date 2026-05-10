@@ -1,0 +1,14 @@
+{
+	"name": "@arshad-shah/internal-config",
+	"version": "0.0.0",
+	"private": true,
+	"description": "Shared TypeScript, build, and test configuration. Internal use only.",
+	"type": "module",
+	"exports": {
+		"./tsconfig.base.json": "./tsconfig.base.json",
+		"./tsconfig.lib.json": "./tsconfig.lib.json",
+		"./tsup.preset": "./src/tsup.preset.ts",
+		"./vitest.preset": "./src/vitest.preset.ts"
+	},
+	"files": ["src", "tsconfig.base.json", "tsconfig.lib.json"]
+}

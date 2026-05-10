@@ -1,0 +1,64 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write   # required for OIDC trusted publishing
+
+jobs:
+  release:
+    name: Version and release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history needed for changesets to detect changed packages
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          # Setting registry-url enables npm to detect OIDC environment.
+          registry-url: https://registry.npmjs.org
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build all packages
+        run: pnpm build
+
+      - name: Run tests
+        run: pnpm test
+
+      - name: Create release PR or publish to npm
+        id: changesets
+        uses: changesets/action@v1
+        with:
+          version: pnpm version
+          publish: pnpm release
+          commit: "chore: version packages"
+          title: "chore: version packages"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # No NPM_TOKEN here - OIDC handles auth via id-token: write permission.
+          # In npm, configure trusted publishers for each package pointing at this
+          # repo + workflow. See: https://docs.npmjs.com/trusted-publishers
+
+      - name: Notify on publish
+        if: steps.changesets.outputs.published == 'true'
+        run: |
+          echo "Published packages:"
+          echo '${{ steps.changesets.outputs.publishedPackages }}'

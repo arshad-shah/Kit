@@ -1,0 +1,98 @@
+{
+	"name": "@arshad-shah/log-kit",
+	"version": "0.1.0",
+	"description": "Tiny structured logger with pluggable transports and perf markers.",
+	"keywords": ["logger", "log", "structured", "telemetry", "perf", "typescript"],
+	"author": "Arshad Shah <hello@arshadshah.com>",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/arshad-shah/kit.git",
+		"directory": "packages/log-kit"
+	},
+	"homepage": "https://kit.arshadshah.com/log-kit",
+	"bugs": "https://github.com/arshad-shah/kit/issues",
+	"type": "module",
+	"sideEffects": false,
+	"main": "./dist/index.cjs",
+	"module": "./dist/index.mjs",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.mjs",
+			"require": "./dist/index.cjs"
+		},
+		"./transports/console": {
+			"types": "./dist/transports/console.d.ts",
+			"import": "./dist/transports/console.mjs",
+			"require": "./dist/transports/console.cjs"
+		},
+		"./transports/http": {
+			"types": "./dist/transports/http.d.ts",
+			"import": "./dist/transports/http.mjs",
+			"require": "./dist/transports/http.cjs"
+		},
+		"./transports/file": {
+			"types": "./dist/transports/file.d.ts",
+			"import": "./dist/transports/file.mjs",
+			"require": "./dist/transports/file.cjs"
+		},
+		"./transports/datadog": {
+			"types": "./dist/transports/datadog.d.ts",
+			"import": "./dist/transports/datadog.mjs",
+			"require": "./dist/transports/datadog.cjs"
+		},
+		"./package.json": "./package.json"
+	},
+	"files": ["dist", "README.md", "LICENSE"],
+	"publishConfig": {
+		"access": "public",
+		"provenance": true
+	},
+	"scripts": {
+		"build": "tsup",
+		"dev": "tsup --watch",
+		"test": "vitest run",
+		"test:watch": "vitest",
+		"test:coverage": "vitest run --coverage",
+		"test:mutation": "stryker run",
+		"typecheck": "tsc --noEmit",
+		"size": "size-limit"
+	},
+	"devDependencies": {
+		"@arshad-shah/internal-config": "workspace:*",
+		"@size-limit/preset-small-lib": "11.1.6",
+		"@stryker-mutator/core": "8.7.1",
+		"@stryker-mutator/typescript-checker": "8.7.1",
+		"@stryker-mutator/vitest-runner": "8.7.1",
+		"@types/node": "22.10.2",
+		"@vitest/coverage-v8": "2.1.8",
+		"size-limit": "11.1.6",
+		"tsup": "8.3.5",
+		"typescript": "5.7.2",
+		"vitest": "2.1.8"
+	},
+	"size-limit": [
+		{ "name": "Core (ESM)", "path": "dist/index.mjs", "limit": "2 KB", "gzip": true },
+		{
+			"name": "Console transport",
+			"path": "dist/transports/console.mjs",
+			"limit": "1 KB",
+			"gzip": true
+		},
+		{
+			"name": "HTTP transport",
+			"path": "dist/transports/http.mjs",
+			"limit": "1.5 KB",
+			"gzip": true
+		},
+		{ "name": "File transport", "path": "dist/transports/file.mjs", "limit": "1 KB", "gzip": true },
+		{
+			"name": "Datadog transport",
+			"path": "dist/transports/datadog.mjs",
+			"limit": "1 KB",
+			"gzip": true
+		}
+	]
+}

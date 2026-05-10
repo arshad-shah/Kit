@@ -1,0 +1,52 @@
+{
+	"name": "@arshad-shah/kit",
+	"version": "0.0.0",
+	"private": true,
+	"description": "Foundation packages for side projects: state management and data fetching",
+	"author": "Arshad Shah <hello@arshadshah.com>",
+	"license": "MIT",
+	"type": "module",
+	"engines": {
+		"node": ">=20.11.0",
+		"pnpm": ">=9.0.0"
+	},
+	"packageManager": "pnpm@9.15.0",
+	"scripts": {
+		"build": "pnpm -r --filter=./packages/* build",
+		"dev": "pnpm -r --parallel --filter=./packages/* dev",
+		"test": "pnpm -r --filter=./packages/* test",
+		"test:watch": "pnpm -r --parallel --filter=./packages/* test:watch",
+		"test:coverage": "pnpm -r --filter=./packages/* test:coverage",
+		"test:mutation": "pnpm -r --filter=./packages/* test:mutation",
+		"lint": "biome check .",
+		"lint:fix": "biome check --write .",
+		"format": "biome format --write .",
+		"typecheck": "pnpm -r --filter=./packages/* typecheck",
+		"size": "pnpm -r --filter=./packages/* size",
+		"docs:dev": "pnpm --filter=docs dev",
+		"docs:build": "pnpm --filter=docs build",
+		"docs:preview": "pnpm --filter=docs preview",
+		"changeset": "changeset",
+		"version": "changeset version && pnpm install --lockfile-only",
+		"release": "pnpm build && changeset publish",
+		"ci": "pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm size",
+		"clean": "pnpm -r exec rm -rf dist node_modules .turbo coverage && rm -rf node_modules"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "1.9.4",
+		"@changesets/cli": "2.27.11",
+		"@types/node": "22.10.2",
+		"tsup": "8.3.5",
+		"typescript": "5.7.2",
+		"vitest": "2.1.8"
+	},
+	"pnpm": {
+		"overrides": {
+			"zod-to-json-schema": "3.23.5"
+		}
+	},
+	"volta": {
+		"node": "24.15.0",
+		"pnpm": "11.0.9"
+	}
+}

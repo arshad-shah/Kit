@@ -1,0 +1,134 @@
+---
+title: Quick start
+description: Install both packages and ship a working counter + API call in 60 seconds.
+---
+
+import { Tabs, TabItem, Code } from "@astrojs/starlight/components";
+
+## Install
+
+Each package can be installed on its own. Most apps use a few:
+
+<Tabs>
+  <TabItem label="pnpm">
+    ```bash
+    pnpm add @arshad-shah/store-kit @arshad-shah/fetch-kit \
+            @arshad-shah/log-kit @arshad-shah/config-kit zustand zod
+    ```
+  </TabItem>
+  <TabItem label="npm">
+    ```bash
+    npm install @arshad-shah/store-kit @arshad-shah/fetch-kit \
+                @arshad-shah/log-kit @arshad-shah/config-kit zustand zod
+    ```
+  </TabItem>
+  <TabItem label="bun">
+    ```bash
+    bun add @arshad-shah/store-kit @arshad-shah/fetch-kit \
+            @arshad-shah/log-kit @arshad-shah/config-kit zustand zod
+    ```
+  </TabItem>
+</Tabs>
+
+`zustand` is a peer dependency of store-kit. `zod` (or any compatible validator) is needed for fetch-kit's schema validation and config-kit. log-kit is dependency-free.
+
+## A persisted counter
+
+```ts
+import { createStore } from "@arshad-shah/store-kit";
+
+export const useCounter = createStore({
+  name: "counter",
+  initial: { count: 0 },
+  actions: (set) => ({
+    increment: () => set((s) => ({ count: s.count + 1 })),
+    decrement: () => set((s) => ({ count: s.count - 1 })),
+  }),
+  persist: { storage: "local", version: 1 },
+});
+```
+
+```tsx
+function Counter() {
+  const count = useCounter((s) => s.count);
+  const { increment, decrement } = useCounter.getState();
+  return (
+    <>
+      <button onClick={decrement}>-</button>
+      <span>{count}</span>
+      <button onClick={increment}>+</button>
+    </>
+  );
+}
+```
+
+The state survives page refreshes. Bump `version` and add a `migrate` map when the shape changes.
+
+## A typed API client
+
+```ts
+import { createClient } from "@arshad-shah/fetch-kit";
+
+export const api = createClient({
+  baseUrl: "https://api.example.com",
+  timeout: 10_000,
+  retry: { attempts: 3, backoff: "exponential" },
+  auth: () => localStorage.getItem("token"),
+});
+
+const user = await api.get<User>("/users/me");
+```
+
+## A React data hook
+
+```tsx
+import { useFetch } from "@arshad-shah/fetch-kit/react";
+
+function Profile() {
+  const { data, error, loading, refetch } = useFetch<User>(api, "/users/me");
+  if (loading) return <Spinner />;
+  if (error) return <button onClick={refetch}>Retry</button>;
+  return <h1>{data!.name}</h1>;
+}
+```
+
+That's the whole API surface for typical use. Read the package overviews next:
+
+- [store-kit overview →](/store-kit/overview/)
+- [fetch-kit overview →](/fetch-kit/overview/)
+- [log-kit overview →](/log-kit/overview/)
+- [config-kit overview →](/config-kit/overview/)
+
+## A structured logger
+
+```ts
+import { createLogger } from "@arshad-shah/log-kit";
+import { consoleTransport } from "@arshad-shah/log-kit/transports/console";
+
+export const log = createLogger({
+  level: "info",
+  transports: [consoleTransport({ pretty: process.env.NODE_ENV !== "production" })],
+});
+
+const end = log.mark("server.boot");
+await startServer();
+end({ port: 3000 });
+```
+
+## Typed config from env
+
+```ts
+import { z } from "zod";
+import { loadConfig, processEnvSource, dotenvFileSource } from "@arshad-shah/config-kit";
+
+export const config = await loadConfig({
+  schema: z.object({
+    NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
+    PORT: z.coerce.number().int().positive().default(3000),
+    DATABASE_URL: z.string().url(),
+  }),
+  sources: [dotenvFileSource(".env"), processEnvSource()],
+});
+
+config.PORT; // number, fully typed
+```

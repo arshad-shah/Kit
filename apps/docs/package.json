@@ -1,0 +1,26 @@
+{
+	"name": "docs",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "astro dev",
+		"build": "pnpm gen:api && astro build",
+		"preview": "astro preview",
+		"gen:api": "node ./scripts/generate-api-docs.mjs",
+		"typecheck": "astro check"
+	},
+	"dependencies": {
+		"@astrojs/check": "0.9.4",
+		"@astrojs/starlight": "0.30.6",
+		"astro": "5.1.1",
+		"sharp": "0.33.5"
+	},
+	"devDependencies": {
+		"@arshad-shah/fetch-kit": "workspace:*",
+		"@arshad-shah/store-kit": "workspace:*",
+		"typedoc": "0.27.6",
+		"typedoc-plugin-markdown": "4.3.3",
+		"typescript": "5.7.2"
+	}
+}

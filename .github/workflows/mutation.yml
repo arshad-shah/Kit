@@ -1,0 +1,59 @@
+name: Mutation testing
+
+on:
+  schedule:
+    # Every Monday at 03:00 UTC
+    - cron: "0 3 * * 1"
+  workflow_dispatch: # manual trigger
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  mutation:
+    name: Stryker (${{ matrix.package }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [store-kit, fetch-kit, log-kit, config-kit]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: pnpm build
+
+      - name: Check package exists
+        id: check
+        run: |
+          if [ -d "packages/${{ matrix.package }}" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run Stryker
+        if: steps.check.outputs.exists == 'true'
+        working-directory: packages/${{ matrix.package }}
+        run: pnpm test:mutation
+
+      - name: Upload mutation report
+        if: steps.check.outputs.exists == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-${{ matrix.package }}
+          path: packages/${{ matrix.package }}/reports/mutation/
+          retention-days: 30

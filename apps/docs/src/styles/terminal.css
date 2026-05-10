@@ -1,0 +1,161 @@
+/*
+ * kit docs - GitHub Dark Terminal aesthetic
+ *
+ * Near-black backgrounds, JetBrains Mono for code & headings, refined blue accent.
+ * Body uses Inter for readability; everything structural is monospace.
+ */
+
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap");
+
+:root,
+:root[data-theme="dark"] {
+	/* Backgrounds */
+	--sl-color-bg: #0d0f14;
+	--sl-color-bg-nav: #0d0f14;
+	--sl-color-bg-sidebar: #0d0f14;
+	--sl-color-bg-inline-code: #161b22;
+	--sl-color-bg-accent: #161b22;
+
+	/* Text */
+	--sl-color-text: #c9d1d9;
+	--sl-color-text-accent: #388bfd;
+	--sl-color-text-invert: #0d0f14;
+	--sl-color-white: #f0f6fc;
+	--sl-color-gray-1: #f0f6fc;
+	--sl-color-gray-2: #c9d1d9;
+	--sl-color-gray-3: #8b949e;
+	--sl-color-gray-4: #6e7681;
+	--sl-color-gray-5: #484f58;
+	--sl-color-gray-6: #30363d;
+	--sl-color-gray-7: #21262d;
+	--sl-color-black: #0d0f14;
+
+	/* Accent (muted blue with subtle glow) */
+	--sl-color-accent-low: #0c2d6b;
+	--sl-color-accent: #388bfd;
+	--sl-color-accent-high: #58a6ff;
+
+	/* Hairlines */
+	--sl-color-hairline: #21262d;
+	--sl-color-hairline-light: #30363d;
+	--sl-color-hairline-shade: #161b22;
+
+	/* Asides */
+	--sl-color-asides-text-accent: #58a6ff;
+	--sl-color-blue: #58a6ff;
+	--sl-color-blue-low: #0c2d6b;
+	--sl-color-blue-high: #79c0ff;
+
+	/* Fonts */
+	--sl-font: "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+	--sl-font-system-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+	--sl-text-code: 0.875rem;
+	--sl-text-code-sm: 0.8rem;
+}
+
+/* Headings get the terminal treatment */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.sl-heading {
+	font-family: var(--sl-font-system-mono);
+	font-weight: 600;
+	letter-spacing: -0.02em;
+}
+
+h1 {
+	font-size: 2rem;
+	line-height: 1.15;
+	margin-bottom: 0.75rem;
+}
+
+/* Terminal-style label before each h2 */
+.sl-markdown-content h2::before {
+	content: "$ ";
+	color: var(--sl-color-accent);
+	font-weight: 700;
+	opacity: 0.6;
+}
+
+/* Subtle blue glow on accent links */
+a {
+	transition: text-shadow 120ms ease;
+}
+a:hover {
+	text-shadow: 0 0 8px rgba(56, 139, 253, 0.4);
+}
+
+/* Code blocks: dense, with a left rule */
+pre {
+	border-left: 2px solid var(--sl-color-accent);
+	background: #0a0c10 !important;
+}
+
+code {
+	font-feature-settings: "calt" 1, "liga" 1;
+}
+
+/* Inline code: subtle pill */
+:not(pre) > code {
+	border: 1px solid var(--sl-color-hairline-light);
+	border-radius: 4px;
+	padding: 0.1em 0.4em;
+	font-size: 0.85em;
+}
+
+/* Sidebar: dense, no fluff */
+.sidebar-content {
+	font-family: var(--sl-font-system-mono);
+	font-size: 0.8125rem;
+}
+
+.sidebar-content summary,
+.sidebar-content a {
+	letter-spacing: -0.01em;
+}
+
+/* Active link in sidebar gets a left border accent */
+.sidebar-content a[aria-current="page"] {
+	border-left: 2px solid var(--sl-color-accent);
+	background: linear-gradient(90deg, rgba(56, 139, 253, 0.08) 0%, transparent 100%);
+}
+
+/* Tables: terminal-style */
+table {
+	font-family: var(--sl-font-system-mono);
+	font-size: 0.85rem;
+}
+
+th {
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	font-size: 0.75rem;
+	color: var(--sl-color-gray-3);
+	border-bottom: 1px solid var(--sl-color-accent);
+}
+
+/* Top nav title */
+.site-title {
+	font-family: var(--sl-font-system-mono);
+	font-weight: 700;
+	letter-spacing: -0.02em;
+}
+
+.site-title::before {
+	content: "▸ ";
+	color: var(--sl-color-accent);
+}
+
+/* Hero card on landing */
+.hero h1 {
+	font-size: clamp(2rem, 5vw, 3.5rem);
+}
+
+/* Selection */
+::selection {
+	background: rgba(56, 139, 253, 0.3);
+	color: #f0f6fc;
+}
