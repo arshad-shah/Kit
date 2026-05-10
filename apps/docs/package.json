@@ -5,15 +5,16 @@
 	"type": "module",
 	"scripts": {
 		"dev": "astro dev",
-		"build": "pnpm gen:api && astro build",
+		"build": "pnpm gen:api && pnpm gen:brand && astro build",
 		"preview": "astro preview",
 		"gen:api": "node ./scripts/generate-api-docs.mjs",
+		"gen:brand": "node ./scripts/generate-brand.mjs",
 		"typecheck": "astro check"
 	},
 	"dependencies": {
 		"@astrojs/check": "0.9.4",
 		"@astrojs/starlight": "0.30.6",
-		"astro": "5.1.1",
+		"astro": "5.18.1",
 		"sharp": "0.33.5"
 	},
 	"devDependencies": {

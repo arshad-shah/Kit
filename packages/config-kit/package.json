@@ -55,11 +55,11 @@
 		"@stryker-mutator/typescript-checker": "8.7.1",
 		"@stryker-mutator/vitest-runner": "8.7.1",
 		"@types/node": "22.10.2",
-		"@vitest/coverage-v8": "2.1.8",
+		"@vitest/coverage-v8": "2.1.9",
 		"size-limit": "11.1.6",
 		"tsup": "8.3.5",
 		"typescript": "5.7.2",
-		"vitest": "2.1.8",
+		"vitest": "2.1.9",
 		"zod": "3.24.1"
 	},
 	"size-limit": [
