@@ -1,36 +1,126 @@
 ---
 title: Quick start
-description: Install both packages and ship a working counter + API call in 60 seconds.
+description: Install the kits you need and ship a working counter, API client, logger, and validated config in five minutes.
 ---
 
-import { Tabs, TabItem, Code } from "@astrojs/starlight/components";
+import { Tabs, TabItem } from "@astrojs/starlight/components";
 
 ## Install
 
-Each package can be installed on its own. Most apps use a few:
+Each kit installs independently — pick only what you need. The peer dependencies below are kept as peers (not bundled) so **you** control their versions and so unused features cost nothing.
+
+### store-kit
+
+Persisted Zustand stores with versioned migrations. Install `zustand` alongside it: store-kit declares Zustand as a peer (`>=4.5.0 <6.0.0`) so your app picks the patch level, and any other library that uses Zustand shares the same instance.
 
 <Tabs>
   <TabItem label="pnpm">
     ```bash
-    pnpm add @arshad-shah/store-kit @arshad-shah/fetch-kit \
-            @arshad-shah/log-kit @arshad-shah/config-kit zustand zod
+    pnpm add @arshad-shah/store-kit zustand
     ```
   </TabItem>
   <TabItem label="npm">
     ```bash
-    npm install @arshad-shah/store-kit @arshad-shah/fetch-kit \
-                @arshad-shah/log-kit @arshad-shah/config-kit zustand zod
+    npm install @arshad-shah/store-kit zustand
+    ```
+  </TabItem>
+  <TabItem label="yarn">
+    ```bash
+    yarn add @arshad-shah/store-kit zustand
     ```
   </TabItem>
   <TabItem label="bun">
     ```bash
-    bun add @arshad-shah/store-kit @arshad-shah/fetch-kit \
-            @arshad-shah/log-kit @arshad-shah/config-kit zustand zod
+    bun add @arshad-shah/store-kit zustand
     ```
   </TabItem>
 </Tabs>
 
-`zustand` is a peer dependency of store-kit. `zod` (or any compatible validator) is needed for fetch-kit's schema validation and config-kit. log-kit is dependency-free.
+### fetch-kit
+
+Typed `fetch` client with retries, timeouts, and an error class hierarchy. Both peers are **optional** (declared via `peerDependenciesMeta`): install nothing extra if you only use the core client. Add `react` if you'll import the `useFetch` / `useMutation` hooks from `@arshad-shah/fetch-kit/react`, and `zod` if you want runtime schema validation on responses (the validator is a `parse` interface, so any compatible library works — `zod` is just the most common).
+
+<Tabs>
+  <TabItem label="pnpm">
+    ```bash
+    # core client only
+    pnpm add @arshad-shah/fetch-kit
+    # add `react zod` if you'll use the hooks or schema validation
+    ```
+  </TabItem>
+  <TabItem label="npm">
+    ```bash
+    npm install @arshad-shah/fetch-kit
+    # add `react zod` if you'll use the hooks or schema validation
+    ```
+  </TabItem>
+  <TabItem label="yarn">
+    ```bash
+    yarn add @arshad-shah/fetch-kit
+    # add `react zod` if you'll use the hooks or schema validation
+    ```
+  </TabItem>
+  <TabItem label="bun">
+    ```bash
+    bun add @arshad-shah/fetch-kit
+    # add `react zod` if you'll use the hooks or schema validation
+    ```
+  </TabItem>
+</Tabs>
+
+### log-kit
+
+Structured logger with pluggable transports. **Zero peers, zero runtime deps** — the rarest profile in the JS ecosystem. Transports (`console`, `http`, `file`, `datadog`) are subpath imports under `@arshad-shah/log-kit/transports/*`, tree-shaken to only what you actually import.
+
+<Tabs>
+  <TabItem label="pnpm">
+    ```bash
+    pnpm add @arshad-shah/log-kit
+    ```
+  </TabItem>
+  <TabItem label="npm">
+    ```bash
+    npm install @arshad-shah/log-kit
+    ```
+  </TabItem>
+  <TabItem label="yarn">
+    ```bash
+    yarn add @arshad-shah/log-kit
+    ```
+  </TabItem>
+  <TabItem label="bun">
+    ```bash
+    bun add @arshad-shah/log-kit
+    ```
+  </TabItem>
+</Tabs>
+
+### config-kit
+
+Schema-validated config loaded from env vars, files, and remote sources. `zod` is a required peer because `loadConfig` returns Zod-inferred types — you *can* pass any object with a `.parse()` method at runtime, but the static types assume Zod's inference. `@arshad-shah/log-kit` is an optional peer: install it if you want config-kit to surface diagnostics (source resolution, validation failures) through your existing logger instead of `console`.
+
+<Tabs>
+  <TabItem label="pnpm">
+    ```bash
+    pnpm add @arshad-shah/config-kit zod
+    ```
+  </TabItem>
+  <TabItem label="npm">
+    ```bash
+    npm install @arshad-shah/config-kit zod
+    ```
+  </TabItem>
+  <TabItem label="yarn">
+    ```bash
+    yarn add @arshad-shah/config-kit zod
+    ```
+  </TabItem>
+  <TabItem label="bun">
+    ```bash
+    bun add @arshad-shah/config-kit zod
+    ```
+  </TabItem>
+</Tabs>
 
 ## A persisted counter
 
@@ -92,13 +182,6 @@ function Profile() {
 }
 ```
 
-That's the whole API surface for typical use. Read the package overviews next:
-
-- [store-kit overview →](/store-kit/overview/)
-- [fetch-kit overview →](/fetch-kit/overview/)
-- [log-kit overview →](/log-kit/overview/)
-- [config-kit overview →](/config-kit/overview/)
-
 ## A structured logger
 
 ```ts
@@ -132,3 +215,10 @@ export const config = await loadConfig({
 
 config.PORT; // number, fully typed
 ```
+
+That's the whole API surface for typical use. Read the package overviews next:
+
+- [store-kit overview →](/store-kit/overview/)
+- [fetch-kit overview →](/fetch-kit/overview/)
+- [log-kit overview →](/log-kit/overview/)
+- [config-kit overview →](/config-kit/overview/)

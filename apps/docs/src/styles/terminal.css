@@ -54,9 +54,9 @@
 	--kit-code-block-bg: #0a0c10;
 	--kit-sidebar-active-text: #f0f6fc;
 	--kit-sidebar-active-bg: rgba(56, 139, 253, 0.12);
-	--kit-selection-bg: rgba(56, 139, 253, 0.30);
+	--kit-selection-bg: rgba(56, 139, 253, 0.3);
 	--kit-selection-text: #f0f6fc;
-	--kit-link-glow: rgba(56, 139, 253, 0.40);
+	--kit-link-glow: rgba(56, 139, 253, 0.4);
 }
 
 /* ---------- Light theme (GitHub Light lineage) ---------- */
@@ -95,8 +95,8 @@
 
 	--kit-code-block-bg: #f6f8fa;
 	--kit-sidebar-active-text: #0550ae;
-	--kit-sidebar-active-bg: rgba(9, 105, 218, 0.10);
-	--kit-selection-bg: rgba(9, 105, 218, 0.20);
+	--kit-sidebar-active-bg: rgba(9, 105, 218, 0.1);
+	--kit-selection-bg: rgba(9, 105, 218, 0.2);
 	--kit-selection-text: #0550ae;
 	--kit-link-glow: rgba(9, 105, 218, 0.35);
 }
@@ -133,8 +133,8 @@ h1 {
 	margin-right: 0.4em;
 	vertical-align: middle;
 	background-color: var(--sl-color-accent);
-	-webkit-mask-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M6 4l4 4-4 4' fill='none' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-	mask-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M6 4l4 4-4 4' fill='none' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+	-webkit-mask-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 18 6-6-6-6'/%3E%3C/svg%3E");
+	mask-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 18 6-6-6-6'/%3E%3C/svg%3E");
 	-webkit-mask-size: contain;
 	mask-size: contain;
 	-webkit-mask-repeat: no-repeat;

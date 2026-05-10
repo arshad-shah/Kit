@@ -1,9 +1,14 @@
 import starlight from "@astrojs/starlight";
+import icon from "astro-icon";
 import { defineConfig } from "astro/config";
 
 export default defineConfig({
 	site: "https://kit.arshadshah.com",
 	integrations: [
+		// astro-icon: Lucide icon set is the source of truth for in-page iconography.
+		// Use as <Icon name="lucide:rocket" /> in MDX, or icon="lucide:rocket" on
+		// custom components that take a name prop.
+		icon({ include: { lucide: ["*"] } }),
 		starlight({
 			title: "kit",
 			description:
@@ -11,7 +16,7 @@ export default defineConfig({
 			logo: {
 				light: "./src/assets/logo-light.svg",
 				dark: "./src/assets/logo-dark.svg",
-				replacesTitle: true,
+				// replacesTitle: true,
 			},
 			social: {
 				github: "https://github.com/arshad-shah/kit",

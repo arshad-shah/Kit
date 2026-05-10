@@ -3,9 +3,11 @@ title: Why kit
 description: The reasoning behind the design choices.
 ---
 
-## Why two packages, not one
+## Why four packages, not one
 
-State management and data fetching are different problems with different update cadences. State changes when the user does things; server data changes when the network responds. Bundling them creates an awkward combined API. Splitting them keeps each package's surface area small enough to actually understand.
+State, HTTP, logging, and configuration are different problems with different update cadences and different consumers. State changes when the user does things; HTTP changes when the network responds; logs are written constantly but read rarely; config is parsed once at boot. Bundling them creates an awkward combined API and forces every consumer to pay for parts they don't use. Splitting them keeps each package's surface area small enough to actually understand, and lets you install only what you need.
+
+Each kit is independently versioned and independently shippable. A breaking change in one doesn't force coordinated upgrades across the others.
 
 ## Why Zustand under the hood
 
@@ -20,6 +22,16 @@ Zustand is the smallest, most flexible store primitive that doesn't force a para
 ## Why React hooks at all
 
 You don't have to use them. The core `Client` is framework-agnostic. The hooks are an optional ergonomic layer on a separate subpath - tree-shaken away if unused.
+
+## Why a custom logger, not pino or winston
+
+- **Size.** pino is ~6 KB minified+gzipped on the client; winston is much larger and Node-only. log-kit is 1.4 KB and runs in browsers, workers, edge runtimes, and Node.
+- **Transport isolation.** A flaky HTTP shipper can't take your app down - each transport is wrapped, errors are swallowed, and the rest keep running.
+- **No async hooks, no Node.js-only APIs.** Same logger code works in your edge function and your dev server.
+
+## Why a config loader at all
+
+You can read `process.env` directly. But then you do it from twelve files, half of them parse `Number(...)` differently, secrets leak into error messages, and the only validation is "the app started, probably." config-kit gives you one source-ordered, schema-validated config object - and the boot fails loudly when something's missing instead of NaN-ing into production.
 
 ## Why JSDoc, not just types
 

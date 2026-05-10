@@ -15,34 +15,26 @@ hero:
       variant: minimal
 ---
 
-import { Card, CardGrid } from "@astrojs/starlight/components";
+import { CardGrid } from "@astrojs/starlight/components";
+import KitCard from "../../components/KitCard.astro";
 
 <CardGrid>
-  <Card title="store-kit" icon="seti:typescript">
-    Typed Zustand factory with persistence, versioned migrations, devtools, and reset. **1.4 KB gzipped.**
-
-    [Read the docs →](/store-kit/overview/)
-  </Card>
-  <Card title="fetch-kit" icon="rocket">
-    Typed HTTP client + React hooks. Retries, timeouts, schema validation, abort-on-unmount. **2.5 KB core, 0.8 KB hooks.**
-
-    [Read the docs →](/fetch-kit/overview/)
-  </Card>
-  <Card title="log-kit" icon="information">
-    Structured logger with pluggable transports (console, HTTP, file, Datadog) and perf markers. **1.4 KB core.**
-
-    [Read the docs →](/log-kit/overview/)
-  </Card>
-  <Card title="config-kit" icon="setting">
-    Typed env loading from .env, process.env, and remote sources. Schema-validated, secret-safe errors. **1.4 KB.**
-
-    [Read the docs →](/config-kit/overview/)
-  </Card>
-  <Card title="Tiny by design" icon="approve-check-circle">
-    Bundle budgets enforced in CI. No accidental growth. No deps in the hot path - just `zustand`, `zod` (optional), and your `fetch`.
-  </Card>
-  <Card title="Strict TypeScript" icon="seti:tsconfig">
-    `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, the works. The API infers - you rarely write a generic.
-  </Card>
+	<KitCard title="store-kit" icon="lucide:database" href="/store-kit/overview/">
+		Typed Zustand factory with persistence, versioned migrations, devtools, and reset. **1.4 KB gzipped.**
+	</KitCard>
+	<KitCard title="fetch-kit" icon="lucide:cloud-download" href="/fetch-kit/overview/">
+		Typed HTTP client + React hooks. Retries, timeouts, schema validation, abort-on-unmount. **2.5 KB core, 0.8 KB hooks.**
+	</KitCard>
+	<KitCard title="log-kit" icon="lucide:scroll-text" href="/log-kit/overview/">
+		Structured logger with pluggable transports (console, HTTP, file, Datadog) and perf markers. **1.4 KB core.**
+	</KitCard>
+	<KitCard title="config-kit" icon="lucide:settings-2" href="/config-kit/overview/">
+		Typed env loading from .env, process.env, and remote sources. Schema-validated, secret-safe errors. **1.4 KB.**
+	</KitCard>
+	<KitCard title="Tiny by design" icon="lucide:gauge">
+		Bundle budgets enforced in CI. No accidental growth. No deps in the hot path - just `zustand`, `zod` (optional), and your `fetch`.
+	</KitCard>
+	<KitCard title="Strict TypeScript" icon="lucide:shield-check">
+		`noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, the works. The API infers - you rarely write a generic.
+	</KitCard>
 </CardGrid>
-
