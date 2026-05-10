@@ -1,0 +1,75 @@
+version: 2
+updates:
+  # GitHub Actions across all workflows
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns:
+          - "*"
+
+  # Root workspace devDependencies (Biome, Changesets, tsup, Vitest, etc.)
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+    groups:
+      root-devdeps:
+        dependency-type: development
+
+  # Docs site (Astro, Starlight, sharp, typedoc) - private, no changeset needed
+  - package-ecosystem: npm
+    directory: "/apps/docs"
+    schedule:
+      interval: weekly
+    groups:
+      docs-deps:
+        patterns:
+          - "*"
+
+  # internal-config - private build-time only, no changeset needed
+  - package-ecosystem: npm
+    directory: "/packages/internal-config"
+    schedule:
+      interval: weekly
+    groups:
+      internal-config-deps:
+        patterns:
+          - "*"
+
+  # Published packages: prod deps individually, devDeps grouped.
+  # Prod dep updates need their own PR + changeset because they affect bundle
+  # size and downstream consumers.
+  - package-ecosystem: npm
+    directory: "/packages/store-kit"
+    schedule:
+      interval: weekly
+    groups:
+      store-kit-devdeps:
+        dependency-type: development
+
+  - package-ecosystem: npm
+    directory: "/packages/fetch-kit"
+    schedule:
+      interval: weekly
+    groups:
+      fetch-kit-devdeps:
+        dependency-type: development
+
+  - package-ecosystem: npm
+    directory: "/packages/log-kit"
+    schedule:
+      interval: weekly
+    groups:
+      log-kit-devdeps:
+        dependency-type: development
+
+  - package-ecosystem: npm
+    directory: "/packages/config-kit"
+    schedule:
+      interval: weekly
+    groups:
+      config-kit-devdeps:
+        dependency-type: development
