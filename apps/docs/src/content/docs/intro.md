@@ -3,15 +3,19 @@ title: Introduction
 description: What kit is, what it isn't, and when to reach for it.
 ---
 
-`kit` is a pair of small TypeScript packages that handle two problems every side project hits in the first week: client state that needs to survive a refresh, and HTTP calls that need to be cancellable, retryable, and typed.
+`kit` is a small set of TypeScript packages that handle the boring problems every side project hits in the first week: state that needs to survive a refresh, HTTP calls that need to be cancellable and retryable, structured logs you can ship somewhere, and config you can validate at boot.
 
-It's deliberately scoped. Not a framework. Not a state-management opinion. Not a data-fetching mega-library. Two packages, three thousand lines of source, no peer-dependency soup.
+It's deliberately scoped. Not a framework. Not a state-management opinion. Not a data-fetching mega-library. Four packages, each independently installable, each under a few KB, no peer-dependency soup.
 
 ## What's in the box
 
 **store-kit** wraps Zustand with the conventions you'd reach for anyway: persistence, versioned migrations, devtools, and a `reset()` that clears storage too. Same Zustand API otherwise, so anything you know about Zustand still applies.
 
 **fetch-kit** is a typed `fetch` wrapper plus two React hooks. Retries with backoff, timeouts via `AbortController`, an error class hierarchy you can `instanceof`, optional schema validation, and request/response interceptors. The React layer is a separate subpath import, so non-React consumers don't pay for it.
+
+**log-kit** is a structured logger with pluggable transports — console, HTTP, file, Datadog — composed however you want. Six log levels, child loggers, performance markers, and per-transport failure isolation so a flaky shipping endpoint can't take your app down.
+
+**config-kit** loads config from env vars, dotenv files, static objects, or remote sources, then validates it with whatever schema library you already use (Zod, Valibot, anything with a `parse` interface). Source ordering, override semantics, and a single typed config object at the end.
 
 ## What it isn't
 

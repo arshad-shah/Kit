@@ -40,8 +40,8 @@ function CreateUserForm() {
     "/users",
     {
       method: "POST",
-      onSuccess: (user) => router.push(`/users/${user.id}`),
-      onError: (err) => toast.error(err.message),
+      onSuccess: (user, variables) => router.push(`/users/${user.id}`),
+      onError: (err, variables) => toast.error(err.message),
     }
   );
 

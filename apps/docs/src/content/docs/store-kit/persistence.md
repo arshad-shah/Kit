@@ -10,13 +10,15 @@ State persistence is opt-in via the `persist` config. Omit it and you get an in-
 Four built-in backends:
 
 ```ts
-persist: { storage: "local" }     // localStorage (default)
+persist: { storage: "local" }     // localStorage
 persist: { storage: "session" }   // sessionStorage
 persist: { storage: "memory" }    // per-store Map - useful for SSR/tests
 persist: { storage: customImpl }  // any KitStorage object
 ```
 
 All four implement the same interface. The custom option is how you'd plug in IndexedDB, AsyncStorage (React Native), or a remote store.
+
+`storage` defaults to `"local"` in browsers and falls back to `"memory"` automatically when `localStorage` is undefined (Node, SSR). You don't need to detect the environment yourself — see [SSR](#ssr) below.
 
 ## Fail-soft behaviour
 

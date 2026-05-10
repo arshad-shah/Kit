@@ -43,7 +43,7 @@ export type UseMutationState<TData, TVariables> = {
  *   "/users",
  *   {
  *     method: "POST",
- *     onSuccess: (user) => router.push(`/users/${user.id}`),
+ *     onSuccess: (user, variables) => router.push(`/users/${user.id}`),
  *   }
  * );
  *

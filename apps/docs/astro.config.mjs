@@ -6,8 +6,13 @@ export default defineConfig({
 	integrations: [
 		starlight({
 			title: "kit",
-			description: "Foundation packages for side projects: state and data fetching.",
-			logo: { src: "./src/assets/logo.svg", replacesTitle: true },
+			description:
+				"Foundation packages for side projects: state, data fetching, logging, and configuration.",
+			logo: {
+				light: "./src/assets/logo-light.svg",
+				dark: "./src/assets/logo-dark.svg",
+				replacesTitle: true,
+			},
 			social: {
 				github: "https://github.com/arshad-shah/kit",
 			},
@@ -18,6 +23,7 @@ export default defineConfig({
 			lastUpdated: true,
 			pagination: true,
 			head: [
+				// Mobile browser chrome — split by OS preference (theme-color can't read Starlight's localStorage toggle).
 				{
 					tag: "meta",
 					attrs: {
@@ -32,6 +38,36 @@ export default defineConfig({
 						name: "theme-color",
 						content: "#ffffff",
 						media: "(prefers-color-scheme: light)",
+					},
+				},
+				// Favicon: SVG with internal prefers-color-scheme styling.
+				{
+					tag: "link",
+					attrs: { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
+				},
+				// iOS Home Screen.
+				{
+					tag: "link",
+					attrs: { rel: "apple-touch-icon", href: "/apple-touch-icon.png", sizes: "180x180" },
+				},
+				// Open Graph image (Facebook, LinkedIn, Discord, Slack, etc.).
+				{
+					tag: "meta",
+					attrs: {
+						property: "og:image",
+						content: "https://kit.arshadshah.com/og-image.png",
+					},
+				},
+				{ tag: "meta", attrs: { property: "og:image:width", content: "1200" } },
+				{ tag: "meta", attrs: { property: "og:image:height", content: "630" } },
+				{ tag: "meta", attrs: { property: "og:image:type", content: "image/png" } },
+				// Twitter / X card.
+				{ tag: "meta", attrs: { name: "twitter:card", content: "summary_large_image" } },
+				{
+					tag: "meta",
+					attrs: {
+						name: "twitter:image",
+						content: "https://kit.arshadshah.com/og-image.png",
 					},
 				},
 			],

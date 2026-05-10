@@ -50,7 +50,7 @@ Importing from `@arshad-shah/fetch-kit/react` gives you `useFetch` and `useMutat
 import { useFetch, useMutation } from "@arshad-shah/fetch-kit/react";
 
 const { data, error, loading, refetch } = useFetch<User>(api, "/users/me");
-const { mutate, loading } = useMutation<User, NewUser>(api, "/users");
+const { mutate, loading, error: mutationError } = useMutation<User, NewUser>(api, "/users");
 ```
 
 If you need caching, deduplication, or background refetching, pair fetch-kit with TanStack Query. The hooks here are for the simple case where a component owns a single request.
