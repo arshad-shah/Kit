@@ -91,8 +91,9 @@
 		{
 			"name": "Datadog transport",
 			"path": "dist/transports/datadog.mjs",
-			"limit": "1 KB",
-			"gzip": true
+			"limit": "1.25 KB",
+			"gzip": true,
+			"ignore": ["module", "os", "node:module", "node:os"]
 		}
 	]
 }

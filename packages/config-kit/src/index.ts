@@ -11,4 +11,5 @@ export type {
 	ConfigSource,
 	LoadConfigOptions,
 	Schema,
+	SourceErrorInfo,
 } from "./types.js";

@@ -25,7 +25,13 @@ export function processEnvSource(): ConfigSource {
  *
  * **Node only.** Uses dynamic import of `node:fs/promises` so it doesn't
  * break browser bundles, but actually calling `load()` in a browser will
- * throw - filter sources by environment in your loader.
+ * throw — filter sources by environment in your loader.
+ *
+ * Missing files (`ENOENT`) are treated as empty config so `.env.local` and
+ * similar optional files can be listed unconditionally. Other I/O failures
+ * (permission denied, "is a directory", etc.) are re-thrown so they surface
+ * to `loadConfig`'s `onSourceError` / logger — masking them would just make
+ * misconfiguration debug sessions miserable.
  *
  * @example
  * ```ts
@@ -36,14 +42,19 @@ export function dotenvFileSource(path: string): ConfigSource {
 	return {
 		name: `dotenv:${path}`,
 		load: async () => {
+			let content: string;
 			try {
 				const { readFile } = await import("node:fs/promises");
-				const content = await readFile(path, "utf-8");
-				return parseDotenv(content);
-			} catch {
-				// Missing .env files are normal (e.g. .env.local in CI). Soft-fail.
-				return {};
+				content = await readFile(path, "utf-8");
+			} catch (err) {
+				const code = (err as NodeJS.ErrnoException | null)?.code;
+				// ENOENT: file just doesn't exist - normal in CI / local-only files.
+				if (code === "ENOENT") return {};
+				// Everything else (EACCES, EISDIR, EBUSY, ...) is a real problem
+				// the developer probably wants to know about.
+				throw err;
 			}
+			return parseDotenv(content);
 		},
 	};
 }
@@ -118,7 +129,13 @@ export function remoteSource(options: RemoteSourceOptions): ConfigSource {
 				const json = (await res.json()) as Record<string, unknown>;
 				const out: Record<string, string> = {};
 				for (const [k, v] of Object.entries(json)) {
+					// Coerce JSON primitives to strings so downstream schemas
+					// (commonly `z.coerce.number()`, `z.coerce.boolean()`) get
+					// something useful instead of silently dropping the key.
+					// Complex values (objects, arrays, null) are still dropped -
+					// they don't have an unambiguous string representation.
 					if (typeof v === "string") out[k] = v;
+					else if (typeof v === "number" || typeof v === "boolean") out[k] = String(v);
 				}
 				return out;
 			} catch {

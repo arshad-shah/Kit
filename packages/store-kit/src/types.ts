@@ -75,12 +75,25 @@ export type PersistConfig<TState> = {
 };
 
 /**
+ * Information passed to {@link CreateStoreConfig.onError}.
+ */
+export type StoreErrorInfo = {
+	/** Where in the store lifecycle the failure occurred. */
+	op: "hydrate" | "persist" | "reset";
+	/** The store's `name`, set after construction. */
+	name?: string;
+};
+
+/**
  * Configuration object for {@link createStore}.
  */
 export type CreateStoreConfig<TState extends object, TActions extends object> = {
 	/** Unique store name. Used as storage key and devtools label. */
 	name: string;
-	/** Initial state. Frozen at runtime to prevent accidental mutation. */
+	/**
+	 * Initial state. Shallow-frozen at runtime in development to catch
+	 * top-level mutations — nested mutations are NOT detected.
+	 */
 	initial: TState;
 	/** Action creator. Receives `set` and `get` from Zustand. */
 	actions?: ActionsCreator<TState, TActions>;
@@ -88,6 +101,13 @@ export type CreateStoreConfig<TState extends object, TActions extends object> = 
 	persist?: PersistConfig<TState>;
 	/** Enable Redux DevTools integration. Defaults to `true` in development. */
 	devtools?: boolean;
+	/**
+	 * Diagnostic hook fired when hydration parsing, persistence writes,
+	 * migrations, or reset cleanup fail. Failures are still swallowed (losing
+	 * persistence is preferable to crashing) — this hook is purely for
+	 * observability.
+	 */
+	onError?: (error: unknown, info: StoreErrorInfo) => void;
 };
 
 /**

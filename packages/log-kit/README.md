@@ -18,6 +18,10 @@ const log = createLogger({
   level: "info",
   context: { app: "my-service" },
   transports: [consoleTransport({ pretty: process.env.NODE_ENV !== "production" })],
+  // Diagnostic channel - optional, fires when a transport write or flush fails.
+  onTransportError: (err, info) => {
+    console.error(`[log-kit] ${info.transport} ${info.op} failed`, err);
+  },
 });
 
 log.info("Server started", { port: 3000 });
@@ -28,24 +32,50 @@ end({ count: users.length });
 // → { level: "info", message: "query.users", context: { durationMs: 12, count: 50 } }
 ```
 
+## Errors and causes
+
+`log.error(err)` and `log.fatal(err)` accept an `Error` and capture `name`,
+`message`, `stack`, the recursive `cause` chain (depth-capped at 3), and
+Node-style `code` if present:
+
+```ts
+const inner = new Error("DB unreachable");
+const outer = new Error("user save failed", { cause: inner });
+log.error(outer);
+// → record.error: { name, message: "user save failed", stack,
+//                   cause: { name, message: "DB unreachable", stack } }
+```
+
+## Draining on shutdown
+
+`flush()` returns a per-transport status so you can detect a partial drain
+(e.g. before exiting a serverless handler):
+
+```ts
+const results = await log.flush();
+const failed = results.filter((r) => !r.ok);
+if (failed.length > 0) process.exitCode = 1;
+```
+
 ## Transports
 
-Each transport is a separate subpath import - tree-shaken away if unused:
+Each transport is a separate subpath import — tree-shaken away if unused:
 
-- `@arshad-shah/log-kit/transports/console` - JSON or pretty-printed console output
-- `@arshad-shah/log-kit/transports/http` - batched HTTP POST to any aggregator
-- `@arshad-shah/log-kit/transports/file` - JSON Lines to disk (Node only)
-- `@arshad-shah/log-kit/transports/datadog` - Datadog Logs intake
+- `@arshad-shah/log-kit/transports/console` — JSON or pretty-printed console output
+- `@arshad-shah/log-kit/transports/http` — batched HTTP POST to any aggregator
+- `@arshad-shah/log-kit/transports/file` — JSON Lines to disk (Node only). Concurrent writes are serialized internally so two records can never interleave on disk.
+- `@arshad-shah/log-kit/transports/datadog` — Datadog Logs intake. Defaults `host` to `os.hostname()` on Node (falls back to `HOSTNAME`/`COMPUTERNAME` env vars), maps `level` to Datadog's canonical `status` field (`fatal` collapses to `error`).
 
-Or write your own - it's a `{ name, write, flush? }` object.
+The HTTP, file, and Datadog transports each expose an `onError` hook for
+diagnostics. Or write your own — it's a `{ name, write, flush? }` object.
 
 ## What you get
 
-- **Six levels** - `trace` < `debug` < `info` < `warn` < `error` < `fatal`
-- **Structured records** - plain JSON, transport-friendly
-- **Child loggers** - `log.child({ requestId })` for scoped context
-- **Perf markers** - one-line operation timing
-- **Failure isolation** - a transport that throws never breaks others
+- **Six levels** — `trace` < `debug` < `info` < `warn` < `error` < `fatal`
+- **Structured records** — plain JSON, transport-friendly
+- **Child loggers** — `log.child({ requestId })` for scoped context (inherits `onTransportError`)
+- **Perf markers** — one-line operation timing, skipped when the level is disabled
+- **Failure isolation with observability** — a transport that throws never breaks the others, and `onTransportError` lets you see it
 
 ## Documentation
 
