@@ -1,37 +1,84 @@
-import { AbortError, HttpError, NetworkError, TimeoutError, ValidationError } from "./errors.js";
+import { createMemoryCache, defaultCacheKey } from "./cache.js";
+import { createInflight } from "./dedupe.js";
+import {
+	AbortError,
+	GraphQLError,
+	HttpError,
+	NetworkError,
+	TimeoutError,
+	ValidationError,
+} from "./errors.js";
 import { computeBackoff, defaultRetryOn, sleep } from "./retry.js";
-import type { Client, ClientConfig, HttpMethod, RequestOptions, RetryConfig } from "./types.js";
+import type {
+	CacheConfig,
+	CacheStore,
+	Client,
+	ClientConfig,
+	GraphQLOptions,
+	GraphQLResponse,
+	HttpMethod,
+	RequestOptions,
+	RetryConfig,
+} from "./types.js";
 import { buildUrl } from "./url.js";
 
 const DEFAULT_TIMEOUT = 30_000;
+const DEFAULT_CACHE_TTL = 60_000;
+const DEFAULT_CACHE_MAX = 100;
+
+type ResolvedCache = {
+	ttl: number;
+	store: CacheStore;
+	keyFn: (method: HttpMethod, url: string, body: unknown) => string;
+	autoCacheGet: boolean;
+};
+
+type CombinedSignal = {
+	controller: AbortController;
+	/** Detach abort listeners from upstream signals. Idempotent. */
+	cleanup: () => void;
+};
 
 /**
- * Combine an external signal with our internal timeout/abort signal.
- * If either fires, the returned signal aborts.
+ * Combine external signals with our internal timeout/abort signal.
+ *
+ * Returns the resulting controller plus a `cleanup` function that detaches
+ * listeners from the upstream signals. Callers must invoke `cleanup` once
+ * the request settles, or long-lived caller signals (e.g. component-scoped
+ * AbortControllers issuing many requests) would accumulate dead listeners
+ * holding closures over our internal state.
  */
-function combineSignals(...signals: (AbortSignal | undefined)[]): AbortController {
+function combineSignals(...signals: (AbortSignal | undefined)[]): CombinedSignal {
 	const controller = new AbortController();
+	const detachers: Array<() => void> = [];
 	for (const signal of signals) {
 		if (!signal) continue;
 		if (signal.aborted) {
 			controller.abort(signal.reason);
+			// Earlier-attached listeners stay valid even if we bail here -
+			// they'd just no-op since the controller is already aborted -
+			// so still capture detachers for them.
 			break;
 		}
-		signal.addEventListener(
-			"abort",
-			() => {
-				controller.abort(signal.reason);
-			},
-			{ once: true },
-		);
+		const onAbort = (): void => {
+			controller.abort(signal.reason);
+		};
+		signal.addEventListener("abort", onAbort, { once: true });
+		detachers.push(() => signal.removeEventListener("abort", onAbort));
 	}
-	return controller;
+	let cleanedUp = false;
+	const cleanup = (): void => {
+		if (cleanedUp) return;
+		cleanedUp = true;
+		for (const detach of detachers) detach();
+	};
+	return { controller, cleanup };
 }
 
 /**
  * Read and parse a response body based on its Content-Type.
  *
- * - `application/json` → parsed JSON
+ * - `application/json` or `application/graphql-response+json` → parsed JSON
  * - `text/*` → string
  * - Empty body or 204/205 → `null`
  * - Anything else → `Blob`
@@ -39,7 +86,7 @@ function combineSignals(...signals: (AbortSignal | undefined)[]): AbortControlle
 async function parseResponseBody(response: Response): Promise<unknown> {
 	if (response.status === 204 || response.status === 205) return null;
 	const contentType = response.headers.get("content-type") ?? "";
-	if (contentType.includes("application/json")) {
+	if (contentType.includes("application/json") || contentType.includes("graphql-response+json")) {
 		const text = await response.text();
 		return text.length === 0 ? null : JSON.parse(text);
 	}
@@ -69,12 +116,30 @@ function encodeBody(body: unknown): [BodyInit | null, Record<string, string>] {
 }
 
 /**
+ * Resolve the user-supplied `cache` config into a normalized internal shape,
+ * or `null` when caching is disabled.
+ */
+function resolveCacheConfig(cache: ClientConfig["cache"]): ResolvedCache | null {
+	if (!cache) return null;
+	const cfg: CacheConfig = cache === true ? {} : cache;
+	const ttl = cfg.ttl ?? DEFAULT_CACHE_TTL;
+	// `ttl: 0` disables caching entirely. Writing entries that are dead on
+	// arrival would just churn the LRU and (for network-backed stores) cost
+	// real bandwidth, so we treat it as `cache: false`.
+	if (ttl <= 0) return null;
+	const store = cfg.store ?? createMemoryCache(cfg.maxSize ?? DEFAULT_CACHE_MAX);
+	const keyFn = cfg.keyFn ?? defaultCacheKey;
+	const autoCacheGet = cfg.autoCacheGet ?? true;
+	return { ttl, store, keyFn, autoCacheGet };
+}
+
+/**
  * Create a typed HTTP client.
  *
- * The client is a thin wrapper over `fetch` that adds: timeouts via AbortController,
- * configurable retry with backoff, typed error classes, request/response interceptors,
- * and optional schema validation. It does not cache responses or manage server state -
- * pair it with TanStack Query or `useFetch` (`@arshad-shah/fetch-kit/react`) for that.
+ * Built on `fetch`, it adds: timeouts via AbortController, configurable retry
+ * with backoff, typed error classes, request/response interceptors, optional
+ * schema validation, response caching, in-flight request deduplication, and
+ * GraphQL support.
  *
  * @example Basic usage
  * ```ts
@@ -88,9 +153,29 @@ function encodeBody(body: unknown): [BodyInit | null, Record<string, string>] {
  *   baseUrl: "/api",
  *   timeout: 10_000,
  *   retry: { attempts: 3, backoff: "exponential" },
- *   auth: () => localStorage.getItem("token"),
+ *   // auth() returns the full Authorization header value. Pick your scheme.
+ *   auth: () => {
+ *     const token = localStorage.getItem("token");
+ *     return token ? `Bearer ${token}` : null;
+ *   },
  *   onError: (err) => logger.error(err),
  * });
+ *
+ * // Or with a custom header / scheme, no string concatenation:
+ * createClient({ auth: () => ({ header: "X-Api-Key", token: key }) });
+ * createClient({ auth: () => ({ scheme: "Token", token: key }) });
+ * ```
+ *
+ * @example With caching + dedupe + GraphQL
+ * ```ts
+ * const api = createClient({
+ *   baseUrl: "https://api.example.com",
+ *   cache: { ttl: 30_000 },          // 30s default TTL, in-memory LRU
+ *   dedupe: true,                    // share in-flight identical requests
+ *   graphqlEndpoint: "/graphql",
+ * });
+ *
+ * const me = await api.graphql<{ me: User }>(`query { me { id name } }`);
  * ```
  *
  * @example With Zod validation
@@ -98,7 +183,6 @@ function encodeBody(body: unknown): [BodyInit | null, Record<string, string>] {
  * import { z } from "zod";
  * const UserSchema = z.object({ id: z.string(), email: z.string().email() });
  * const user = await api.get("/users/me", { schema: UserSchema });
- * // user is fully typed as { id: string; email: string }
  * ```
  */
 export function createClient(config: ClientConfig = {}): Client {
@@ -112,15 +196,27 @@ export function createClient(config: ClientConfig = {}): Client {
 		requestInterceptors = [],
 		responseInterceptors = [],
 		fetch: fetchImpl = globalThis.fetch.bind(globalThis),
+		cache: cacheOption,
+		dedupe: dedupeEnabled = true,
+		graphqlEndpoint,
 	} = config;
+
+	const cacheConfig = resolveCacheConfig(cacheOption);
+	const inflight = createInflight<unknown>();
 
 	async function executeOnce<T>(
 		method: HttpMethod,
-		path: string,
+		url: string,
 		body: unknown,
 		options: RequestOptions<T>,
+		/**
+		 * When this request is shared via dedupe, `sharedController.signal` is
+		 * the signal piped into the actual fetch. Aborting it tears down the
+		 * underlying request. When not dedupe-shared, it's just our own per-call
+		 * controller and behaves identically to the previous design.
+		 */
+		sharedController?: AbortController,
 	): Promise<T> {
-		const url = buildUrl(baseUrl, path, options.query);
 		const requestTimeout = options.timeout ?? timeout;
 
 		const timeoutController = new AbortController();
@@ -128,7 +224,13 @@ export function createClient(config: ClientConfig = {}): Client {
 			timeoutController.abort(new TimeoutError(requestTimeout));
 		}, requestTimeout);
 
-		const combined = combineSignals(options.signal, timeoutController.signal);
+		const combined = combineSignals(
+			sharedController?.signal,
+			timeoutController.signal,
+			// When sharedController is present, the caller's own signal is
+			// handled by the dedupe layer - don't double-attach.
+			sharedController ? undefined : options.signal,
+		);
 
 		try {
 			const headers: Record<string, string> = { ...defaultHeaders, ...options.headers };
@@ -136,9 +238,17 @@ export function createClient(config: ClientConfig = {}): Client {
 			Object.assign(headers, bodyHeaders, options.headers);
 
 			if (auth) {
-				const token = await auth();
-				if (token) {
-					Object.assign(headers, { Authorization: `Bearer ${token}` });
+				const result = await auth();
+				if (result) {
+					const headerName =
+						typeof result === "string" ? "Authorization" : (result.header ?? "Authorization");
+					const headerValue =
+						typeof result === "string"
+							? result
+							: result.scheme
+								? `${result.scheme} ${result.token}`
+								: result.token;
+					headers[headerName] = headerValue;
 				}
 			}
 
@@ -146,7 +256,7 @@ export function createClient(config: ClientConfig = {}): Client {
 				method,
 				headers,
 				body: encodedBody,
-				signal: combined.signal,
+				signal: combined.controller.signal,
 			};
 
 			for (const interceptor of requestInterceptors) {
@@ -158,8 +268,8 @@ export function createClient(config: ClientConfig = {}): Client {
 			try {
 				response = await fetchImpl(url, init);
 			} catch (err) {
-				if (combined.signal.aborted) {
-					const reason = combined.signal.reason;
+				if (combined.controller.signal.aborted) {
+					const reason = combined.controller.signal.reason;
 					if (reason instanceof TimeoutError) throw reason;
 					throw new AbortError();
 				}
@@ -193,24 +303,31 @@ export function createClient(config: ClientConfig = {}): Client {
 			return parsedBody as T;
 		} finally {
 			clearTimeout(timeoutId);
+			combined.cleanup();
 		}
 	}
 
 	async function executeWithRetry<T>(
 		method: HttpMethod,
-		path: string,
+		url: string,
 		body: unknown,
 		options: RequestOptions<T>,
+		sharedController?: AbortController,
 	): Promise<T> {
 		const retry: RetryConfig | undefined = options.retry ?? defaultRetry;
 		const attempts = retry?.attempts ?? 0;
 		const backoff = retry?.backoff ?? "exponential";
 		const retryOn = retry?.retryOn ?? defaultRetryOn;
 
+		// Backoff waits should respect the shared abort (when dedupe-active) or
+		// the caller's signal (otherwise) so we don't sleep for ages after the
+		// underlying request has already torn down.
+		const sleepSignal = sharedController?.signal ?? options.signal;
+
 		let lastError: unknown;
 		for (let attempt = 0; attempt <= attempts; attempt++) {
 			try {
-				return await executeOnce(method, path, body, options);
+				return await executeOnce(method, url, body, options, sharedController);
 			} catch (err) {
 				lastError = err;
 				if (err instanceof AbortError || err instanceof ValidationError) {
@@ -221,10 +338,82 @@ export function createClient(config: ClientConfig = {}): Client {
 					throw err;
 				}
 				const delay = computeBackoff(attempt + 1, backoff);
-				await sleep(delay, options.signal);
+				await sleep(delay, sleepSignal);
 			}
 		}
 		throw lastError;
+	}
+
+	/**
+	 * Run a request through the optional cache + dedupe pipeline.
+	 *
+	 * `isReadOp` controls whether the request is *eligible* for caching/dedupe
+	 * by default; explicit per-request `cache` / `dedupe` overrides still win.
+	 * For HTTP this maps to "is GET"; for GraphQL it maps to "is a query".
+	 */
+	async function runCached<T>(
+		method: HttpMethod,
+		url: string,
+		body: unknown,
+		options: RequestOptions<T>,
+		isReadOp: boolean,
+		cacheKeyOverride?: string,
+	): Promise<T> {
+		const useCache = (() => {
+			if (!cacheConfig) return false;
+			if (options.cache === false) return false;
+			if (options.cache === undefined) return isReadOp && cacheConfig.autoCacheGet;
+			return true;
+		})();
+
+		const useDedupe = (() => {
+			if (options.dedupe === false) return false;
+			if (!dedupeEnabled && options.dedupe !== true) return false;
+			if (options.dedupe === undefined) return isReadOp;
+			return true;
+		})();
+
+		const computeKey = (): string => {
+			// User-supplied key wins over auto-generated overrides so callers
+			// can always pin a request to a known cache slot.
+			if (typeof options.cache === "object" && options.cache?.key) return options.cache.key;
+			if (cacheKeyOverride) return cacheKeyOverride;
+			const keyFn = cacheConfig?.keyFn ?? defaultCacheKey;
+			return keyFn(method, url, body);
+		};
+
+		const key = useCache || useDedupe ? computeKey() : "";
+
+		if (useCache && cacheConfig) {
+			const opt = typeof options.cache === "object" ? options.cache : undefined;
+			const bypass = opt?.bypass === true;
+			if (!bypass) {
+				const entry = await cacheConfig.store.get(key);
+				if (entry) return entry.data as T;
+			}
+		}
+
+		// Build the "fetch + cache.set" pipeline. When dedupe is on this runs
+		// exactly once per burst, no matter how many callers subscribe; when
+		// dedupe is off, each call gets its own pipeline and the caller's
+		// signal is wired in directly inside executeOnce.
+		const runner = async (sharedController?: AbortController): Promise<T> => {
+			const result = await executeWithRetry(method, url, body, options, sharedController);
+			if (useCache && cacheConfig) {
+				const opt = typeof options.cache === "object" ? options.cache : undefined;
+				const ttl = opt?.ttl ?? cacheConfig.ttl;
+				await cacheConfig.store.set(key, {
+					data: result,
+					expiresAt: Date.now() + ttl,
+				});
+			}
+			return result;
+		};
+
+		if (useDedupe) {
+			return inflight.run(key, runner as never, options.signal) as Promise<T>;
+		}
+		return runner();
 	}
 
 	async function request<T>(
@@ -234,7 +423,69 @@ export function createClient(config: ClientConfig = {}): Client {
 		options: RequestOptions<T> = {},
 	): Promise<T> {
 		try {
-			return await executeWithRetry(method, path, body, options);
+			const url = buildUrl(baseUrl, path, options.query);
+			// GET and HEAD are RFC 9110 "safe" methods - both are eligible for
+			// caching and dedupe by default. OPTIONS isn't typically cached even
+			// though it's safe, so we don't auto-include it.
+			const isReadOp = method === "GET" || method === "HEAD";
+			return await runCached(method, url, body, options, isReadOp);
+		} catch (err) {
+			onError?.(err);
+			throw err;
+		}
+	}
+
+	async function graphql<TData, TVariables>(
+		query: string,
+		options: GraphQLOptions<TData, TVariables> = {} as GraphQLOptions<TData, TVariables>,
+	): Promise<TData> {
+		const {
+			variables,
+			operationName,
+			url: urlOverride,
+			operation = "query",
+			schema,
+			...rest
+		} = options;
+		const endpoint = urlOverride ?? graphqlEndpoint;
+		if (!endpoint) {
+			throw new Error(
+				"graphql: no endpoint configured. Pass `graphqlEndpoint` to createClient() or `url` per request.",
+			);
+		}
+		const url = buildUrl(baseUrl, endpoint, undefined);
+		const body = { query, variables, operationName };
+		const isReadOp = operation === "query";
+
+		const cacheKey = `GQL ${url} ${operationName ?? ""} ${query} ${
+			variables ? JSON.stringify(variables) : ""
+		}`;
+
+		try {
+			const envelope = await runCached<GraphQLResponse<TData>>(
+				"POST",
+				url,
+				body,
+				rest as RequestOptions<GraphQLResponse<TData>>,
+				isReadOp,
+				cacheKey,
+			);
+
+			if (envelope?.errors && envelope.errors.length > 0) {
+				throw new GraphQLError(envelope.errors, envelope.data);
+			}
+			const data = (envelope?.data ?? null) as TData;
+			if (schema) {
+				try {
+					return schema.parse(data);
+				} catch (err) {
+					throw new ValidationError(
+						err instanceof Error ? err.message : "GraphQL schema validation failed",
+						err,
+					);
+				}
+			}
+			return data;
 		} catch (err) {
 			onError?.(err);
 			throw err;
@@ -247,6 +498,11 @@ export function createClient(config: ClientConfig = {}): Client {
 		put: (path, body, options) => request("PUT", path, body, options),
 		patch: (path, body, options) => request("PATCH", path, body, options),
 		delete: (path, options) => request("DELETE", path, undefined, options),
+		head: (path, options) => request("HEAD", path, undefined, options),
+		options: (path, options) => request("OPTIONS", path, undefined, options),
 		request,
+		graphql,
+		invalidate: (key) => cacheConfig?.store.delete(key),
+		clearCache: () => cacheConfig?.store.clear(),
 	};
 }

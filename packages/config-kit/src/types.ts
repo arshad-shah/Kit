@@ -35,6 +35,14 @@ export type ConfigLogger = {
 };
 
 /**
+ * Information passed to {@link LoadConfigOptions.onSourceError}.
+ */
+export type SourceErrorInfo = {
+	/** The source's `name` (e.g. `"dotenv:.env"`, `"process.env"`). */
+	source: string;
+};
+
+/**
  * Configuration for {@link loadConfig}.
  */
 export type LoadConfigOptions<T> = {
@@ -49,4 +57,10 @@ export type LoadConfigOptions<T> = {
 	 * Off by default to avoid logging secrets.
 	 */
 	includeValuesInErrors?: boolean;
+	/**
+	 * Diagnostic hook called when a source's `load()` throws. The error is
+	 * still soft-handled (treated as an empty source) so other sources
+	 * continue to load — this hook is purely for observability.
+	 */
+	onSourceError?: (error: unknown, info: SourceErrorInfo) => void;
 };

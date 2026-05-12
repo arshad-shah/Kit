@@ -34,6 +34,11 @@ export function definePackagePreset(entry: Record<string, string>): Options {
 		minify: false,
 		target: "es2022",
 		platform: "neutral",
+		// Keep `node:` specifiers intact: at runtime Node resolves them
+		// natively, browsers tree-shake them out via the `sideEffects: false`
+		// hints. Without this, tsup tries to bundle "node:os" / "node:module"
+		// for the neutral platform and fails.
+		external: [/^node:/],
 		outExtension: ({ format }) => ({
 			js: format === "cjs" ? ".cjs" : ".mjs",
 		}),

@@ -63,20 +63,78 @@ describe("createClient", () => {
 	});
 
 	describe("auth", () => {
-		it("adds Authorization header when auth returns a token", async () => {
+		it("uses the returned string as the Authorization header verbatim", async () => {
 			const fetchSpy = vi.fn(async () => jsonResponse({}));
-			const api = createClient({ fetch: fetchSpy, auth: () => "abc123" });
+			const api = createClient({ fetch: fetchSpy, auth: () => "Bearer abc123" });
 			await api.get("/x");
 			const init = fetchSpy.mock.calls[0]?.[1] as RequestInit;
 			expect((init.headers as Record<string, string>).Authorization).toBe("Bearer abc123");
 		});
 
-		it("omits Authorization when auth returns null", async () => {
+		it("does not prefix Bearer (caller controls the scheme)", async () => {
+			const fetchSpy = vi.fn(async () => jsonResponse({}));
+			const api = createClient({ fetch: fetchSpy, auth: () => "Token xyz" });
+			await api.get("/x");
+			const init = fetchSpy.mock.calls[0]?.[1] as RequestInit;
+			expect((init.headers as Record<string, string>).Authorization).toBe("Token xyz");
+		});
+
+		it("supports raw API-key values (no scheme prefix)", async () => {
+			const fetchSpy = vi.fn(async () => jsonResponse({}));
+			const api = createClient({ fetch: fetchSpy, auth: () => "raw-api-key" });
+			await api.get("/x");
+			const init = fetchSpy.mock.calls[0]?.[1] as RequestInit;
+			expect((init.headers as Record<string, string>).Authorization).toBe("raw-api-key");
+		});
+
+		it("supports custom header names via the object form", async () => {
+			const fetchSpy = vi.fn(async () => jsonResponse({}));
+			const api = createClient({
+				fetch: fetchSpy,
+				auth: () => ({ header: "X-Api-Key", token: "key123" }),
+			});
+			await api.get("/x");
+			const init = fetchSpy.mock.calls[0]?.[1] as RequestInit;
+			expect((init.headers as Record<string, string>)["X-Api-Key"]).toBe("key123");
+			expect((init.headers as Record<string, string>).Authorization).toBeUndefined();
+		});
+
+		it("supports scheme + token via the object form", async () => {
+			const fetchSpy = vi.fn(async () => jsonResponse({}));
+			const api = createClient({
+				fetch: fetchSpy,
+				auth: () => ({ scheme: "Bearer", token: "abc" }),
+			});
+			await api.get("/x");
+			const init = fetchSpy.mock.calls[0]?.[1] as RequestInit;
+			expect((init.headers as Record<string, string>).Authorization).toBe("Bearer abc");
+		});
+
+		it("omits the header when auth returns null", async () => {
 			const fetchSpy = vi.fn(async () => jsonResponse({}));
 			const api = createClient({ fetch: fetchSpy, auth: () => null });
 			await api.get("/x");
 			const init = fetchSpy.mock.calls[0]?.[1] as RequestInit;
 			expect((init.headers as Record<string, string>).Authorization).toBeUndefined();
+		});
+
+		it("omits the header when auth returns undefined", async () => {
+			const fetchSpy = vi.fn(async () => jsonResponse({}));
+			const api = createClient({ fetch: fetchSpy, auth: () => undefined });
+			await api.get("/x");
+			const init = fetchSpy.mock.calls[0]?.[1] as RequestInit;
+			expect((init.headers as Record<string, string>).Authorization).toBeUndefined();
+		});
+
+		it("supports an async auth function", async () => {
+			const fetchSpy = vi.fn(async () => jsonResponse({}));
+			const api = createClient({
+				fetch: fetchSpy,
+				auth: async () => "Bearer refreshed",
+			});
+			await api.get("/x");
+			const init = fetchSpy.mock.calls[0]?.[1] as RequestInit;
+			expect((init.headers as Record<string, string>).Authorization).toBe("Bearer refreshed");
 		});
 	});
 

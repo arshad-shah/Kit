@@ -4,7 +4,13 @@
  */
 export type LogLevel = "trace" | "debug" | "info" | "warn" | "error" | "fatal";
 
-/** Numeric ordering for level comparisons. */
+/**
+ * Canonical numeric ordering for level comparisons.
+ *
+ * Used both for the logger's own threshold check and by transports (e.g. the
+ * HTTP transport's per-transport level filter). Anything inside the package
+ * needing to compare levels should import this rather than re-deriving it.
+ */
 export const LEVEL_ORDER: Readonly<Record<LogLevel, number>> = Object.freeze({
 	trace: 10,
 	debug: 20,
@@ -13,6 +19,21 @@ export const LEVEL_ORDER: Readonly<Record<LogLevel, number>> = Object.freeze({
 	error: 50,
 	fatal: 60,
 });
+
+/**
+ * Serialized representation of an Error, safe to JSON-encode and ship to a
+ * transport. Captures the common fields plus the `cause` chain (recursive,
+ * depth-capped) and Node-style `code` for I/O errors.
+ */
+export type SerializedError = {
+	name: string;
+	message: string;
+	stack?: string;
+	/** Node-style error code, e.g. `"ENOENT"` or numeric `errno`. */
+	code?: string | number;
+	/** Recursive cause chain (from `new Error(..., { cause })`). Depth-capped at 3. */
+	cause?: SerializedError;
+};
 
 /**
  * A structured log record. Transports receive these and decide what to do.
@@ -30,13 +51,14 @@ export type LogRecord = {
 	/** Structured context attached at the log call or via `child()`. */
 	context: Record<string, unknown>;
 	/** Optional error, if `.error()` was called with one. */
-	error?: { name: string; message: string; stack?: string };
+	error?: SerializedError;
 };
 
 /**
  * A transport receives every record at or above the logger's threshold.
- * Errors thrown by a transport are swallowed to prevent logging failures
- * from breaking the host application.
+ *
+ * Errors thrown or rejected by a transport never propagate to the caller.
+ * Configure `LoggerConfig.onTransportError` if you want to observe them.
  */
 export type Transport = {
 	/** Identifier for diagnostics; not required to be unique. */
@@ -45,6 +67,25 @@ export type Transport = {
 	write: (record: LogRecord) => void | Promise<void>;
 	/** Optional flush hook called by `logger.flush()`. */
 	flush?: () => void | Promise<void>;
+};
+
+/**
+ * Result of flushing a single transport. Returned by `logger.flush()` so
+ * callers can detect partial-drain failures (e.g. before exiting a serverless
+ * handler) instead of treating "the promise resolved" as success.
+ */
+export type TransportStatus =
+	| { name: string; ok: true }
+	| { name: string; ok: false; error: unknown };
+
+/**
+ * Information passed to `LoggerConfig.onTransportError`.
+ */
+export type TransportErrorInfo = {
+	/** The transport's `name`. */
+	transport: string;
+	/** Whether the failure occurred during a record write or a flush. */
+	op: "write" | "flush";
 };
 
 /**
@@ -61,6 +102,14 @@ export type LoggerConfig = {
 	 * Optional clock for deterministic tests. Defaults to `() => new Date()`.
 	 */
 	now?: () => Date;
+	/**
+	 * Diagnostic hook fired when a transport `write` or `flush` throws or
+	 * rejects. Failures are still swallowed so logging keeps working — this
+	 * hook is purely for observability (dev consoles, error tracking, etc.).
+	 *
+	 * Inherited by child loggers created via `logger.child()`.
+	 */
+	onTransportError?: (error: unknown, info: TransportErrorInfo) => void;
 };
 
 /**
@@ -75,7 +124,7 @@ export type Logger = {
 	info: (message: string, context?: Record<string, unknown>) => void;
 	warn: (message: string, context?: Record<string, unknown>) => void;
 	/**
-	 * Log an error. Pass an Error instance to capture name/message/stack,
+	 * Log an error. Pass an Error instance to capture name/message/stack/cause/code,
 	 * or a message string with optional context.
 	 */
 	error: (messageOrError: string | Error, context?: Record<string, unknown>) => void;
@@ -104,6 +153,13 @@ export type Logger = {
 		options?: { level?: LogLevel },
 	) => (extraContext?: Record<string, unknown>) => void;
 
-	/** Flush all transports. Returns a promise that resolves when all have flushed. */
-	flush: () => Promise<void>;
+	/**
+	 * Flush all transports. Returns a per-transport status so callers can
+	 * detect drains that failed (e.g. before exiting a serverless handler).
+	 *
+	 * The promise always resolves; failures appear as `{ ok: false, error }`
+	 * entries in the returned array and are also reported via
+	 * `LoggerConfig.onTransportError` if configured.
+	 */
+	flush: () => Promise<TransportStatus[]>;
 };

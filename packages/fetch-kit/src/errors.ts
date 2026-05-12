@@ -82,3 +82,30 @@ export class ValidationError extends FetchKitError {
 		super(message);
 	}
 }
+
+/**
+ * Thrown when a GraphQL operation returns one or more errors.
+ *
+ * GraphQL servers respond with HTTP 200 even when an operation fails, so the
+ * client inspects the response body for an `errors` array and surfaces it as
+ * this error. Both the error list and any partial `data` returned by the
+ * server are preserved so callers can decide whether to recover.
+ *
+ * Each entry in {@link errors} follows the GraphQL spec error shape:
+ * `{ message, locations?, path?, extensions? }`.
+ */
+export class GraphQLError extends FetchKitError {
+	override readonly name = "GraphQLError";
+
+	constructor(
+		public readonly errors: ReadonlyArray<{
+			message: string;
+			locations?: ReadonlyArray<{ line: number; column: number }>;
+			path?: ReadonlyArray<string | number>;
+			extensions?: Record<string, unknown>;
+		}>,
+		public readonly data: unknown,
+	) {
+		super(errors[0]?.message ?? "GraphQL operation failed");
+	}
+}

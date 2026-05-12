@@ -9,4 +9,5 @@ export type {
 	PersistConfig,
 	SetState,
 	StorageBackend,
+	StoreErrorInfo,
 } from "./types.js";

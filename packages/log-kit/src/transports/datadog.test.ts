@@ -107,4 +107,79 @@ describe("datadogTransport", () => {
 		const body = JSON.parse((fetchSpy.mock.calls[0]?.[1] as RequestInit).body as string);
 		expect(body[0].context.host).toBe("host-1");
 	});
+
+	it("defaults hostname to os.hostname() on Node when none is supplied", async () => {
+		const os = await import("node:os");
+		const fetchSpy = vi.fn(async () => new Response("", { status: 202 }));
+		const transport = datadogTransport({
+			apiKey: "k",
+			service: "my-app",
+			batchSize: 1,
+			fetch: fetchSpy,
+		});
+
+		transport.write(record());
+		await vi.runAllTimersAsync();
+
+		const body = JSON.parse((fetchSpy.mock.calls[0]?.[1] as RequestInit).body as string);
+		expect(body[0].context.host).toBe(os.hostname());
+	});
+
+	it("maps level to Datadog's canonical status field", async () => {
+		const fetchSpy = vi.fn(async () => new Response("", { status: 202 }));
+		const transport = datadogTransport({
+			apiKey: "k",
+			service: "my-app",
+			batchSize: 2,
+			fetch: fetchSpy,
+		});
+
+		transport.write({ ...record(), level: "warn" });
+		transport.write({ ...record(), level: "fatal" });
+		await vi.runAllTimersAsync();
+
+		const body = JSON.parse((fetchSpy.mock.calls[0]?.[1] as RequestInit).body as string);
+		expect(body[0].status).toBe("warn");
+		// Datadog has no "fatal" status; "error" is its highest severity.
+		expect(body[1].status).toBe("error");
+	});
+
+	it("hostname: null opts out of the auto-default", async () => {
+		const fetchSpy = vi.fn(async () => new Response("", { status: 202 }));
+		const transport = datadogTransport({
+			apiKey: "k",
+			service: "my-app",
+			hostname: null,
+			batchSize: 1,
+			fetch: fetchSpy,
+		});
+
+		transport.write(record());
+		await vi.runAllTimersAsync();
+
+		const body = JSON.parse((fetchSpy.mock.calls[0]?.[1] as RequestInit).body as string);
+		expect(body[0].context.host).toBeUndefined();
+	});
+
+	it("resolves a non-empty hostname via os.hostname() or env fallback", async () => {
+		// We get *something* truthy - either os.hostname() in this Node
+		// process, or the HOSTNAME/COMPUTERNAME env fallback. Both prove the
+		// auto-resolve path is wired up end-to-end. We don't mutate
+		// process.env to keep this test free of cleanup hazards; the env
+		// fallback branch is exercised by the unit test path's catch arm.
+		const fetchSpy = vi.fn(async () => new Response("", { status: 202 }));
+		const transport = datadogTransport({
+			apiKey: "k",
+			service: "my-app",
+			batchSize: 1,
+			fetch: fetchSpy,
+		});
+
+		transport.write(record());
+		await vi.runAllTimersAsync();
+
+		const body = JSON.parse((fetchSpy.mock.calls[0]?.[1] as RequestInit).body as string);
+		expect(typeof body[0].context.host).toBe("string");
+		expect((body[0].context.host as string).length).toBeGreaterThan(0);
+	});
 });

@@ -264,6 +264,30 @@ describe("createStore", () => {
 			expect(a.getState().v).toBe(1);
 			expect(b.getState().v).toBe(99); // not reset because destroyed
 		});
+
+		it("unsubscribes the persistence listener so storage isn't written after destroy", () => {
+			const setItem = vi.fn();
+			const storage = {
+				getItem: () => null,
+				setItem,
+				removeItem: () => undefined,
+			};
+			const store = createStore({
+				name: "destroy-persist",
+				initial: { v: 0 },
+				persist: { storage, version: 0 },
+			});
+			store.setState({ v: 1 });
+			const setItemCallsBeforeDestroy = setItem.mock.calls.length;
+			expect(setItemCallsBeforeDestroy).toBeGreaterThan(0);
+
+			store.destroy();
+			setItem.mockClear();
+
+			store.setState({ v: 2 });
+			// After destroy, the persistence listener must be detached.
+			expect(setItem).not.toHaveBeenCalled();
+		});
 	});
 
 	describe("async storage", () => {
@@ -349,6 +373,47 @@ describe("createStore", () => {
 
 			expect(() => useStore.setState({ count: 1 })).not.toThrow();
 			expect(useStore.getState().count).toBe(1);
+		});
+	});
+
+	describe("onError diagnostic channel", () => {
+		it("fires when persist serialization fails", () => {
+			const onError = vi.fn();
+			const store = createStore({
+				name: "diag-persist",
+				initial: { count: 0 },
+				persist: {
+					storage: { getItem: () => null, setItem: () => undefined, removeItem: () => undefined },
+					version: 0,
+					serialize: () => {
+						throw new Error("can't serialize");
+					},
+				},
+				onError,
+			});
+			store.setState({ count: 1 });
+			expect(onError).toHaveBeenCalledOnce();
+			const [err, info] = onError.mock.calls[0] ?? [];
+			expect((err as Error).message).toBe("can't serialize");
+			expect(info).toMatchObject({ op: "persist", name: "diag-persist" });
+		});
+
+		it("fires when hydration parsing fails", () => {
+			const onError = vi.fn();
+			const storage = {
+				getItem: () => "not-json{{{",
+				setItem: () => undefined,
+				removeItem: () => undefined,
+			};
+			createStore({
+				name: "diag-hydrate",
+				initial: { count: 0 },
+				persist: { storage, version: 0 },
+				onError,
+			});
+			expect(onError).toHaveBeenCalledOnce();
+			const [, info] = onError.mock.calls[0] ?? [];
+			expect(info).toMatchObject({ op: "hydrate", name: "diag-hydrate" });
 		});
 	});
 });

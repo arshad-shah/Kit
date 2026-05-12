@@ -54,13 +54,17 @@ describe("remoteSource", () => {
 		expect(values).toEqual({ A: "1", B: "2" });
 	});
 
-	it("filters out non-string values", async () => {
+	it("coerces JSON primitives to strings (numbers, booleans) and drops complex values", async () => {
 		const fetchSpy = vi.fn(
-			async () => new Response(JSON.stringify({ A: "ok", B: 123, C: null, D: { nested: "x" } })),
+			async () =>
+				new Response(
+					JSON.stringify({ A: "ok", B: 123, BOOL: true, C: null, D: { nested: "x" }, E: [1, 2] }),
+				),
 		);
 		const source = remoteSource({ url: "https://x", fetch: fetchSpy });
 		const values = await source.load();
-		expect(values).toEqual({ A: "ok" });
+		// Primitives are coerced so schemas with z.coerce.* see something useful.
+		expect(values).toEqual({ A: "ok", B: "123", BOOL: "true" });
 	});
 
 	it("returns empty object on non-2xx", async () => {
@@ -102,7 +106,8 @@ describe("dotenvFileSource", () => {
 
 	it("returns empty object when the file is missing", async () => {
 		const { readFile } = await import("node:fs/promises");
-		vi.mocked(readFile).mockRejectedValueOnce(new Error("ENOENT"));
+		const err = Object.assign(new Error("ENOENT: no such file"), { code: "ENOENT" });
+		vi.mocked(readFile).mockRejectedValueOnce(err);
 
 		const source = dotenvFileSource(".env.missing");
 		expect(await source.load()).toEqual({});
@@ -111,6 +116,15 @@ describe("dotenvFileSource", () => {
 	it("uses the source name based on path", () => {
 		const source = dotenvFileSource(".env.local");
 		expect(source.name).toBe("dotenv:.env.local");
+	});
+
+	it("rethrows non-ENOENT I/O errors instead of masking them as 'missing'", async () => {
+		const { readFile } = await import("node:fs/promises");
+		const eacces = Object.assign(new Error("EACCES: permission denied"), { code: "EACCES" });
+		vi.mocked(readFile).mockRejectedValueOnce(eacces);
+
+		const source = dotenvFileSource(".env");
+		await expect(source.load()).rejects.toThrow(/permission denied/);
 	});
 });
 
@@ -213,5 +227,27 @@ describe("loadConfig", () => {
 			logger,
 		});
 		expect(logger.warn).toHaveBeenCalled();
+	});
+
+	it("invokes onSourceError with the source name and the original error", async () => {
+		const onSourceError = vi.fn();
+		const cause = new Error("disk failure");
+		await loadConfig({
+			schema: stringSchema,
+			sources: [
+				{
+					name: "explodes",
+					load: () => {
+						throw cause;
+					},
+				},
+				staticSource({ NAME: "ok" }),
+			],
+			onSourceError,
+		});
+		expect(onSourceError).toHaveBeenCalledOnce();
+		const [err, info] = onSourceError.mock.calls[0] ?? [];
+		expect(err).toBe(cause);
+		expect(info).toMatchObject({ source: "explodes" });
 	});
 });

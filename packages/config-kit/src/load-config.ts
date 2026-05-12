@@ -48,7 +48,7 @@ import type { LoadConfigOptions } from "./types.js";
  * ```
  */
 export async function loadConfig<T>(options: LoadConfigOptions<T>): Promise<T> {
-	const { schema, sources, logger, includeValuesInErrors = false } = options;
+	const { schema, sources, logger, includeValuesInErrors = false, onSourceError } = options;
 
 	if (sources.length === 0) {
 		throw new Error("loadConfig: at least one source is required");
@@ -65,6 +65,13 @@ export async function loadConfig<T>(options: LoadConfigOptions<T>): Promise<T> {
 				logger?.warn(`Source ${source.name} failed`, {
 					error: err instanceof Error ? err.message : String(err),
 				});
+				if (onSourceError) {
+					try {
+						onSourceError(err, { source: source.name });
+					} catch {
+						/* a bad onSourceError must not break the load */
+					}
+				}
 				return { source: source.name, values: {} };
 			}
 		}),

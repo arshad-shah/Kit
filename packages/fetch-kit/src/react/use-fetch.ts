@@ -24,9 +24,10 @@ export type UseFetchOptions<T> = RequestOptions<T> & {
 /**
  * React hook for declarative GET requests.
  *
- * The request is automatically aborted if the component unmounts or if the
- * dependencies change before completion. State updates are skipped after unmount
- * to avoid React warnings.
+ * The in-flight request is automatically aborted if the component unmounts or
+ * if `deps` change before it completes, and stale responses are dropped on
+ * the floor rather than racing the latest one into state. State updates are
+ * skipped after unmount to avoid React warnings.
  *
  * @typeParam T - Expected response type
  * @param client - Client instance from `createClient`
@@ -61,6 +62,13 @@ export function useFetch<T>(
 		};
 	}, []);
 
+	// Tracks the most recently started request. Earlier requests still in
+	// flight when this changes are considered stale and ignored on resolve.
+	const requestIdRef = useRef(0);
+	// Controller for the currently in-flight request, aborted when the next
+	// one starts or the component unmounts.
+	const controllerRef = useRef<AbortController | null>(null);
+
 	// Stash request options in a ref so the request function stays referentially
 	// stable. Refetch behaviour is controlled explicitly by `deps`, not by every
 	// option's identity.
@@ -68,7 +76,13 @@ export function useFetch<T>(
 	optionsRef.current = requestOptions;
 
 	const execute = useCallback(async (): Promise<void> => {
+		// Cancel any previous request and bump the request id so its eventual
+		// resolution can't overwrite this one.
+		controllerRef.current?.abort();
 		const controller = new AbortController();
+		controllerRef.current = controller;
+		const myId = ++requestIdRef.current;
+
 		setLoading(true);
 		setError(undefined);
 		try {
@@ -76,19 +90,20 @@ export function useFetch<T>(
 				...optionsRef.current,
 				signal: controller.signal,
 			});
-			if (mountedRef.current) {
+			if (mountedRef.current && requestIdRef.current === myId) {
 				setData(result);
 				setError(undefined);
 			}
 		} catch (err) {
-			if (mountedRef.current) {
+			if (mountedRef.current && requestIdRef.current === myId) {
 				setError(err);
 			}
 		} finally {
-			if (mountedRef.current) {
+			if (mountedRef.current && requestIdRef.current === myId) {
 				setLoading(false);
 			}
 		}
+		// deps are user-supplied; intentionally non-static.
 	}, [client, path, ...deps]);
 
 	useEffect(() => {
@@ -97,6 +112,12 @@ export function useFetch<T>(
 			return;
 		}
 		void execute();
+		return () => {
+			// Effect cleanup runs on dep change or unmount: tear down the
+			// in-flight fetch so the kit doesn't hold open a request the UI
+			// no longer cares about.
+			controllerRef.current?.abort();
+		};
 	}, [enabled, execute]);
 
 	return { data, error, loading, refetch: execute };

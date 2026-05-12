@@ -1,4 +1,4 @@
-import type { LogLevel, LogRecord, Transport } from "../types.js";
+import { LEVEL_ORDER, type LogLevel, type LogRecord, type Transport } from "../types.js";
 
 /**
  * HTTP transport options.
@@ -16,15 +16,11 @@ export type HttpTransportOptions = {
 	level?: LogLevel;
 	/** Custom fetch implementation. Defaults to `globalThis.fetch`. */
 	fetch?: typeof fetch;
-};
-
-const LEVEL_VALUES: Record<LogLevel, number> = {
-	trace: 10,
-	debug: 20,
-	info: 30,
-	warn: 40,
-	error: 50,
-	fatal: 60,
+	/**
+	 * Diagnostic hook called when a flush fails. Failures are still swallowed
+	 * (fire-and-forget telemetry); this hook is purely for observability.
+	 */
+	onError?: (error: unknown, info: { op: "flush"; url: string }) => void;
 };
 
 /**
@@ -55,35 +51,55 @@ export function httpTransport(options: HttpTransportOptions): Transport {
 		flushIntervalMs = 5000,
 		level,
 		fetch: fetchImpl = globalThis.fetch.bind(globalThis),
+		onError,
 	} = options;
 
-	const threshold = level ? LEVEL_VALUES[level] : Number.NEGATIVE_INFINITY;
+	const threshold = level ? LEVEL_ORDER[level] : Number.NEGATIVE_INFINITY;
 	let buffer: LogRecord[] = [];
 	let timer: ReturnType<typeof setTimeout> | null = null;
 
-	const flush = async (): Promise<void> => {
-		if (buffer.length === 0) return;
-		const batch = buffer;
-		buffer = [];
+	const report = (err: unknown): void => {
+		if (!onError) return;
+		try {
+			onError(err, { op: "flush", url });
+		} catch {
+			/* user-side errors must not break logging */
+		}
+	};
+
+	const clearTimer = (): void => {
 		if (timer) {
 			clearTimeout(timer);
 			timer = null;
 		}
+	};
+
+	const flush = async (): Promise<void> => {
+		clearTimer();
+		if (buffer.length === 0) return;
+		const batch = buffer;
+		buffer = [];
 		try {
-			await fetchImpl(url, {
+			const res = await fetchImpl(url, {
 				method: "POST",
 				headers: { "Content-Type": "application/json", ...headers },
 				body: JSON.stringify(batch),
 				keepalive: true,
 			});
-		} catch {
-			// Drop on failure. The contract is fire-and-forget.
+			if (!res.ok) {
+				report(new Error(`HTTP ${res.status} ${res.statusText}`));
+			}
+		} catch (err) {
+			report(err);
 		}
 	};
 
 	const scheduleFlush = (): void => {
 		if (timer) return;
 		timer = setTimeout(() => {
+			// The timer fired; reset our reference before flushing so a
+			// subsequent write can re-schedule.
+			timer = null;
 			void flush();
 		}, flushIntervalMs);
 	};
@@ -91,7 +107,7 @@ export function httpTransport(options: HttpTransportOptions): Transport {
 	return {
 		name: "http",
 		write: (record) => {
-			if (LEVEL_VALUES[record.level] < threshold) return;
+			if (LEVEL_ORDER[record.level] < threshold) return;
 			buffer.push(record);
 			if (buffer.length >= batchSize) {
 				void flush();

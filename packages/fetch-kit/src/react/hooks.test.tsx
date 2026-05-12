@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { createClient } from "../create-client.js";
 import { useFetch } from "./use-fetch.js";
+import { useGraphQL } from "./use-graphql.js";
 import { useMutation } from "./use-mutation.js";
 
 function jsonResponse(body: unknown, init?: ResponseInit): Response {
@@ -167,5 +168,144 @@ describe("useMutation", () => {
 		});
 		expect(result.current.data).toBeUndefined();
 		expect(result.current.error).toBeUndefined();
+	});
+});
+
+describe("useGraphQL", () => {
+	it("loads data on mount", async () => {
+		const fetchSpy = vi.fn(async () => jsonResponse({ data: { me: { id: "1" } } }));
+		const client = createClient({ fetch: fetchSpy, graphqlEndpoint: "/graphql" });
+
+		const { result } = renderHook(() =>
+			useGraphQL<{ me: { id: string } }>(client, "query Me { me { id } }"),
+		);
+
+		expect(result.current.loading).toBe(true);
+		await waitFor(() => expect(result.current.loading).toBe(false));
+		expect(result.current.data).toEqual({ me: { id: "1" } });
+		expect(result.current.error).toBeUndefined();
+	});
+
+	it("does not run when enabled is false", async () => {
+		const fetchSpy = vi.fn(async () => jsonResponse({ data: { x: 1 } }));
+		const client = createClient({ fetch: fetchSpy, graphqlEndpoint: "/graphql" });
+
+		const { result } = renderHook(() => useGraphQL(client, "query { x }", { enabled: false }));
+		await waitFor(() => expect(result.current.loading).toBe(false));
+		expect(fetchSpy).not.toHaveBeenCalled();
+	});
+
+	it("refetches when refetch is called", async () => {
+		const fetchSpy = vi.fn(async () => jsonResponse({ data: { x: 1 } }));
+		const client = createClient({ fetch: fetchSpy, graphqlEndpoint: "/graphql" });
+
+		const { result } = renderHook(() => useGraphQL(client, "query { x }"));
+		await waitFor(() => expect(result.current.loading).toBe(false));
+		await act(async () => {
+			await result.current.refetch();
+		});
+		expect(fetchSpy).toHaveBeenCalledTimes(2);
+	});
+
+	it("captures graphql errors as error state", async () => {
+		const fetchSpy = vi.fn(async () =>
+			jsonResponse({ data: null, errors: [{ message: "denied" }] }),
+		);
+		const client = createClient({ fetch: fetchSpy, graphqlEndpoint: "/graphql" });
+
+		const { result } = renderHook(() => useGraphQL(client, "query { x }"));
+		await waitFor(() => expect(result.current.loading).toBe(false));
+		expect(result.current.error).toBeDefined();
+		expect(result.current.data).toBeUndefined();
+	});
+});
+
+describe("hook race conditions on deps change", () => {
+	function makeFetchSpy(wrap: (payload: { id: number }) => unknown = (p) => p) {
+		// Per-call resolver lets the test interleave responses out of order.
+		// Mirrors real fetch's behavior of rejecting when the AbortSignal fires.
+		const resolvers: Array<(payload: { id: number }) => void> = [];
+		const fetchSpy = vi.fn(async (_url: string, init?: RequestInit) => {
+			const payload = await new Promise<{ id: number }>((resolve, reject) => {
+				const signal = init?.signal;
+				if (signal?.aborted) {
+					reject(signal.reason ?? new DOMException("aborted", "AbortError"));
+					return;
+				}
+				let captured = false;
+				const onAbort = (): void => {
+					if (captured) return;
+					reject(signal?.reason ?? new DOMException("aborted", "AbortError"));
+				};
+				signal?.addEventListener("abort", onAbort, { once: true });
+				const wrappedResolve = (value: { id: number }): void => {
+					captured = true;
+					signal?.removeEventListener("abort", onAbort);
+					resolve(value);
+				};
+				resolvers.push(wrappedResolve);
+			});
+			return new Response(JSON.stringify(wrap(payload)), {
+				headers: { "content-type": "application/json" },
+			});
+		});
+		return { fetchSpy, resolvers };
+	}
+
+	it("useFetch ignores a stale response that resolves after deps change", async () => {
+		const { fetchSpy, resolvers } = makeFetchSpy();
+		const client = createClient({ fetch: fetchSpy });
+
+		const { result, rerender } = renderHook(
+			({ id }: { id: number }) => useFetch<{ id: number }>(client, "/x", { deps: [id] }),
+			{ initialProps: { id: 1 } },
+		);
+
+		// Change deps before the first fetch resolves.
+		rerender({ id: 2 });
+
+		await waitFor(() => expect(resolvers.length).toBe(2));
+
+		// Resolve the SECOND request first, then the stale first request.
+		await act(async () => {
+			resolvers[1]?.({ id: 2 });
+			await Promise.resolve();
+			resolvers[0]?.({ id: 1 });
+			await Promise.resolve();
+			await Promise.resolve();
+		});
+
+		await waitFor(() => expect(result.current.loading).toBe(false));
+		// data must reflect the latest deps, not the stale request that landed second.
+		expect(result.current.data?.id).toBe(2);
+	});
+
+	it("useGraphQL ignores a stale response that resolves after deps change", async () => {
+		const { fetchSpy, resolvers } = makeFetchSpy((p) => ({ data: { id: p.id } }));
+		const client = createClient({ fetch: fetchSpy, graphqlEndpoint: "/graphql" });
+
+		const { result, rerender } = renderHook(
+			({ id }: { id: number }) =>
+				useGraphQL<{ id: number }>(client, "query Q($id: ID!) { id }", {
+					variables: { id },
+					deps: [id],
+				}),
+			{ initialProps: { id: 1 } },
+		);
+
+		rerender({ id: 2 });
+
+		await waitFor(() => expect(resolvers.length).toBe(2));
+
+		await act(async () => {
+			resolvers[1]?.({ id: 2 });
+			await Promise.resolve();
+			resolvers[0]?.({ id: 1 });
+			await Promise.resolve();
+			await Promise.resolve();
+		});
+
+		await waitFor(() => expect(result.current.loading).toBe(false));
+		expect(result.current.data?.id).toBe(2);
 	});
 });

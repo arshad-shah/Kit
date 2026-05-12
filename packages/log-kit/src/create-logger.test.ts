@@ -229,8 +229,140 @@ describe("createLogger", () => {
 				],
 				now: fixedNow,
 			});
-			await expect(log.flush()).resolves.toBeUndefined();
+			// flush returns a TransportStatus[] instead of swallowing failures.
+			const result = await log.flush();
 			expect(flushOk).toHaveBeenCalled();
+			expect(result).toEqual([
+				{ name: "throws", ok: false, error: expect.any(Error) },
+				{ name: "ok", ok: true },
+			]);
+		});
+
+		it("reports per-transport status so callers can detect drains that failed", async () => {
+			const log = createLogger({
+				transports: [
+					{ name: "a", write: () => undefined, flush: async () => undefined },
+					{
+						name: "b",
+						write: () => undefined,
+						flush: async () => {
+							throw new Error("network down");
+						},
+					},
+				],
+				now: fixedNow,
+			});
+			const result = await log.flush();
+			expect(result).toHaveLength(2);
+			expect(result[0]).toEqual({ name: "a", ok: true });
+			expect(result[1]?.ok).toBe(false);
+			expect((result[1] as { error: Error }).error.message).toBe("network down");
+		});
+
+		it("returns ok: true for transports without a flush method", async () => {
+			const log = createLogger({
+				transports: [{ name: "noflush", write: () => undefined }],
+				now: fixedNow,
+			});
+			const result = await log.flush();
+			expect(result).toEqual([{ name: "noflush", ok: true }]);
+		});
+	});
+
+	describe("onTransportError diagnostic channel", () => {
+		it("fires when a synchronous write throws", () => {
+			const onTransportError = vi.fn();
+			const log = createLogger({
+				transports: [
+					{
+						name: "broken",
+						write: () => {
+							throw new Error("write blew up");
+						},
+					},
+				],
+				now: fixedNow,
+				onTransportError,
+			});
+			log.info("hi");
+			expect(onTransportError).toHaveBeenCalledOnce();
+			const [err, info] = onTransportError.mock.calls[0] ?? [];
+			expect(err).toBeInstanceOf(Error);
+			expect((err as Error).message).toBe("write blew up");
+			expect(info).toMatchObject({ transport: "broken", op: "write" });
+		});
+
+		it("fires when an async write rejects", async () => {
+			const onTransportError = vi.fn();
+			const log = createLogger({
+				transports: [
+					{
+						name: "asyncBroken",
+						write: async () => {
+							throw new Error("async fail");
+						},
+					},
+				],
+				now: fixedNow,
+				onTransportError,
+			});
+			log.info("hi");
+			await new Promise((r) => setTimeout(r, 5));
+			expect(onTransportError).toHaveBeenCalledOnce();
+			const [err, info] = onTransportError.mock.calls[0] ?? [];
+			expect((err as Error).message).toBe("async fail");
+			expect(info).toMatchObject({ transport: "asyncBroken", op: "write" });
+		});
+
+		it("fires when flush throws", async () => {
+			const onTransportError = vi.fn();
+			const log = createLogger({
+				transports: [
+					{
+						name: "flushBroken",
+						write: () => undefined,
+						flush: () => {
+							throw new Error("flush boom");
+						},
+					},
+				],
+				now: fixedNow,
+				onTransportError,
+			});
+			await log.flush();
+			expect(onTransportError).toHaveBeenCalledOnce();
+			const [err, info] = onTransportError.mock.calls[0] ?? [];
+			expect((err as Error).message).toBe("flush boom");
+			expect(info).toMatchObject({ transport: "flushBroken", op: "flush" });
+		});
+	});
+
+	describe("error serialization", () => {
+		it("captures the cause chain", () => {
+			const records: import("./types.js").LogRecord[] = [];
+			const log = createLogger({
+				transports: [{ name: "cap", write: (r) => records.push(r) }],
+				now: fixedNow,
+			});
+			const inner = new Error("DB down");
+			const outer = new Error("user save failed", { cause: inner });
+			log.error(outer);
+			expect(records).toHaveLength(1);
+			expect(records[0]?.error?.message).toBe("user save failed");
+			expect(records[0]?.error?.cause).toEqual(
+				expect.objectContaining({ name: "Error", message: "DB down" }),
+			);
+		});
+
+		it("captures Node-style err.code", () => {
+			const records: import("./types.js").LogRecord[] = [];
+			const log = createLogger({
+				transports: [{ name: "cap", write: (r) => records.push(r) }],
+				now: fixedNow,
+			});
+			const err = Object.assign(new Error("not found"), { code: "ENOENT" });
+			log.error(err);
+			expect(records[0]?.error?.code).toBe("ENOENT");
 		});
 	});
 });
