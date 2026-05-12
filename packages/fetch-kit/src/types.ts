@@ -7,7 +7,7 @@ export type Schema<T> = {
 };
 
 /** HTTP methods supported by the client. */
-export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS";
 
 /**
  * Backoff strategy for retries.
@@ -286,6 +286,16 @@ export type Client = {
 	put: <T = unknown>(path: string, body?: unknown, options?: RequestOptions<T>) => Promise<T>;
 	patch: <T = unknown>(path: string, body?: unknown, options?: RequestOptions<T>) => Promise<T>;
 	delete: <T = unknown>(path: string, options?: RequestOptions<T>) => Promise<T>;
+	/**
+	 * Issue a `HEAD` request. Like `get`, but the response body is discarded by
+	 * the server. Useful for cheap existence / size / ETag checks.
+	 */
+	head: <T = unknown>(path: string, options?: RequestOptions<T>) => Promise<T>;
+	/**
+	 * Issue an `OPTIONS` request. Useful for CORS preflight inspection or
+	 * discovering supported methods.
+	 */
+	options: <T = unknown>(path: string, options?: RequestOptions<T>) => Promise<T>;
 	/** Generic request for cases where the helpers don't fit. */
 	request: <T = unknown>(
 		method: HttpMethod,

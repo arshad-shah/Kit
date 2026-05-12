@@ -57,8 +57,11 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: pnpm
 
+      # The docs app depends on astro 6, which transitively requires Node
+      # >=22.12 via @astrojs/prism. Library packages themselves still target
+      # Node 20+ - skipping docs here keeps the matrix legs honest.
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --filter '!docs'
 
       - name: Run tests with coverage
         run: pnpm test:coverage

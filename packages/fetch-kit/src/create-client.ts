@@ -33,27 +33,46 @@ type ResolvedCache = {
 	autoCacheGet: boolean;
 };
 
+type CombinedSignal = {
+	controller: AbortController;
+	/** Detach abort listeners from upstream signals. Idempotent. */
+	cleanup: () => void;
+};
+
 /**
- * Combine an external signal with our internal timeout/abort signal.
- * If either fires, the returned signal aborts.
+ * Combine external signals with our internal timeout/abort signal.
+ *
+ * Returns the resulting controller plus a `cleanup` function that detaches
+ * listeners from the upstream signals. Callers must invoke `cleanup` once
+ * the request settles, or long-lived caller signals (e.g. component-scoped
+ * AbortControllers issuing many requests) would accumulate dead listeners
+ * holding closures over our internal state.
  */
-function combineSignals(...signals: (AbortSignal | undefined)[]): AbortController {
+function combineSignals(...signals: (AbortSignal | undefined)[]): CombinedSignal {
 	const controller = new AbortController();
+	const detachers: Array<() => void> = [];
 	for (const signal of signals) {
 		if (!signal) continue;
 		if (signal.aborted) {
 			controller.abort(signal.reason);
+			// Earlier-attached listeners stay valid even if we bail here -
+			// they'd just no-op since the controller is already aborted -
+			// so still capture detachers for them.
 			break;
 		}
-		signal.addEventListener(
-			"abort",
-			() => {
-				controller.abort(signal.reason);
-			},
-			{ once: true },
-		);
+		const onAbort = (): void => {
+			controller.abort(signal.reason);
+		};
+		signal.addEventListener("abort", onAbort, { once: true });
+		detachers.push(() => signal.removeEventListener("abort", onAbort));
 	}
-	return controller;
+	let cleanedUp = false;
+	const cleanup = (): void => {
+		if (cleanedUp) return;
+		cleanedUp = true;
+		for (const detach of detachers) detach();
+	};
+	return { controller, cleanup };
 }
 
 /**
@@ -104,6 +123,10 @@ function resolveCacheConfig(cache: ClientConfig["cache"]): ResolvedCache | null 
 	if (!cache) return null;
 	const cfg: CacheConfig = cache === true ? {} : cache;
 	const ttl = cfg.ttl ?? DEFAULT_CACHE_TTL;
+	// `ttl: 0` disables caching entirely. Writing entries that are dead on
+	// arrival would just churn the LRU and (for network-backed stores) cost
+	// real bandwidth, so we treat it as `cache: false`.
+	if (ttl <= 0) return null;
 	const store = cfg.store ?? createMemoryCache(cfg.maxSize ?? DEFAULT_CACHE_MAX);
 	const keyFn = cfg.keyFn ?? defaultCacheKey;
 	const autoCacheGet = cfg.autoCacheGet ?? true;
@@ -186,6 +209,13 @@ export function createClient(config: ClientConfig = {}): Client {
 		url: string,
 		body: unknown,
 		options: RequestOptions<T>,
+		/**
+		 * When this request is shared via dedupe, `sharedController.signal` is
+		 * the signal piped into the actual fetch. Aborting it tears down the
+		 * underlying request. When not dedupe-shared, it's just our own per-call
+		 * controller and behaves identically to the previous design.
+		 */
+		sharedController?: AbortController,
 	): Promise<T> {
 		const requestTimeout = options.timeout ?? timeout;
 
@@ -194,7 +224,13 @@ export function createClient(config: ClientConfig = {}): Client {
 			timeoutController.abort(new TimeoutError(requestTimeout));
 		}, requestTimeout);
 
-		const combined = combineSignals(options.signal, timeoutController.signal);
+		const combined = combineSignals(
+			sharedController?.signal,
+			timeoutController.signal,
+			// When sharedController is present, the caller's own signal is
+			// handled by the dedupe layer - don't double-attach.
+			sharedController ? undefined : options.signal,
+		);
 
 		try {
 			const headers: Record<string, string> = { ...defaultHeaders, ...options.headers };
@@ -220,7 +256,7 @@ export function createClient(config: ClientConfig = {}): Client {
 				method,
 				headers,
 				body: encodedBody,
-				signal: combined.signal,
+				signal: combined.controller.signal,
 			};
 
 			for (const interceptor of requestInterceptors) {
@@ -232,8 +268,8 @@ export function createClient(config: ClientConfig = {}): Client {
 			try {
 				response = await fetchImpl(url, init);
 			} catch (err) {
-				if (combined.signal.aborted) {
-					const reason = combined.signal.reason;
+				if (combined.controller.signal.aborted) {
+					const reason = combined.controller.signal.reason;
 					if (reason instanceof TimeoutError) throw reason;
 					throw new AbortError();
 				}
@@ -267,6 +303,7 @@ export function createClient(config: ClientConfig = {}): Client {
 			return parsedBody as T;
 		} finally {
 			clearTimeout(timeoutId);
+			combined.cleanup();
 		}
 	}
 
@@ -275,16 +312,22 @@ export function createClient(config: ClientConfig = {}): Client {
 		url: string,
 		body: unknown,
 		options: RequestOptions<T>,
+		sharedController?: AbortController,
 	): Promise<T> {
 		const retry: RetryConfig | undefined = options.retry ?? defaultRetry;
 		const attempts = retry?.attempts ?? 0;
 		const backoff = retry?.backoff ?? "exponential";
 		const retryOn = retry?.retryOn ?? defaultRetryOn;
 
+		// Backoff waits should respect the shared abort (when dedupe-active) or
+		// the caller's signal (otherwise) so we don't sleep for ages after the
+		// underlying request has already torn down.
+		const sleepSignal = sharedController?.signal ?? options.signal;
+
 		let lastError: unknown;
 		for (let attempt = 0; attempt <= attempts; attempt++) {
 			try {
-				return await executeOnce(method, url, body, options);
+				return await executeOnce(method, url, body, options, sharedController);
 			} catch (err) {
 				lastError = err;
 				if (err instanceof AbortError || err instanceof ValidationError) {
@@ -295,7 +338,7 @@ export function createClient(config: ClientConfig = {}): Client {
 					throw err;
 				}
 				const delay = computeBackoff(attempt + 1, backoff);
-				await sleep(delay, options.signal);
+				await sleep(delay, sleepSignal);
 			}
 		}
 		throw lastError;
@@ -331,8 +374,10 @@ export function createClient(config: ClientConfig = {}): Client {
 		})();
 
 		const computeKey = (): string => {
-			if (cacheKeyOverride) return cacheKeyOverride;
+			// User-supplied key wins over auto-generated overrides so callers
+			// can always pin a request to a known cache slot.
 			if (typeof options.cache === "object" && options.cache?.key) return options.cache.key;
+			if (cacheKeyOverride) return cacheKeyOverride;
 			const keyFn = cacheConfig?.keyFn ?? defaultCacheKey;
 			return keyFn(method, url, body);
 		};
@@ -348,19 +393,27 @@ export function createClient(config: ClientConfig = {}): Client {
 			}
 		}
 
-		const run = (): Promise<T> => executeWithRetry(method, url, body, options);
-		const result = useDedupe ? ((await inflight.run(key, run as never)) as T) : await run();
+		// Build the "fetch + cache.set" pipeline. When dedupe is on this runs
+		// exactly once per burst, no matter how many callers subscribe; when
+		// dedupe is off, each call gets its own pipeline and the caller's
+		// signal is wired in directly inside executeOnce.
+		const runner = async (sharedController?: AbortController): Promise<T> => {
+			const result = await executeWithRetry(method, url, body, options, sharedController);
+			if (useCache && cacheConfig) {
+				const opt = typeof options.cache === "object" ? options.cache : undefined;
+				const ttl = opt?.ttl ?? cacheConfig.ttl;
+				await cacheConfig.store.set(key, {
+					data: result,
+					expiresAt: Date.now() + ttl,
+				});
+			}
+			return result;
+		};
 
-		if (useCache && cacheConfig) {
-			const opt = typeof options.cache === "object" ? options.cache : undefined;
-			const ttl = opt?.ttl ?? cacheConfig.ttl;
-			await cacheConfig.store.set(key, {
-				data: result,
-				expiresAt: Date.now() + ttl,
-			});
+		if (useDedupe) {
+			return inflight.run(key, runner as never, options.signal) as Promise<T>;
 		}
-
-		return result;
+		return runner();
 	}
 
 	async function request<T>(
@@ -371,7 +424,11 @@ export function createClient(config: ClientConfig = {}): Client {
 	): Promise<T> {
 		try {
 			const url = buildUrl(baseUrl, path, options.query);
-			return await runCached(method, url, body, options, method === "GET");
+			// GET and HEAD are RFC 9110 "safe" methods - both are eligible for
+			// caching and dedupe by default. OPTIONS isn't typically cached even
+			// though it's safe, so we don't auto-include it.
+			const isReadOp = method === "GET" || method === "HEAD";
+			return await runCached(method, url, body, options, isReadOp);
 		} catch (err) {
 			onError?.(err);
 			throw err;
@@ -441,6 +498,8 @@ export function createClient(config: ClientConfig = {}): Client {
 		put: (path, body, options) => request("PUT", path, body, options),
 		patch: (path, body, options) => request("PATCH", path, body, options),
 		delete: (path, options) => request("DELETE", path, undefined, options),
+		head: (path, options) => request("HEAD", path, undefined, options),
+		options: (path, options) => request("OPTIONS", path, undefined, options),
 		request,
 		graphql,
 		invalidate: (key) => cacheConfig?.store.delete(key),

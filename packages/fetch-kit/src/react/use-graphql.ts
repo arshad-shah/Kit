@@ -24,8 +24,8 @@ export type UseGraphQLState<TData> = {
 /**
  * React hook for declarative GraphQL queries.
  *
- * Behaves like {@link useFetch}: aborts on unmount or dep change, skips state
- * updates after unmount, and re-runs when `deps` change. Pairs well with the
+ * Like {@link useFetch}: aborts the in-flight request on unmount or `deps`
+ * change, and drops stale responses on the floor. Pairs well with the
  * client's response cache + dedupe — multiple components requesting the same
  * query share one in-flight request and one cache entry.
  *
@@ -59,11 +59,18 @@ export function useGraphQL<TData = unknown, TVariables = Record<string, unknown>
 		};
 	}, []);
 
+	const requestIdRef = useRef(0);
+	const controllerRef = useRef<AbortController | null>(null);
+
 	const optionsRef = useRef(graphqlOptions);
 	optionsRef.current = graphqlOptions;
 
 	const execute = useCallback(async (): Promise<void> => {
+		controllerRef.current?.abort();
 		const controller = new AbortController();
+		controllerRef.current = controller;
+		const myId = ++requestIdRef.current;
+
 		setLoading(true);
 		setError(undefined);
 		try {
@@ -71,16 +78,16 @@ export function useGraphQL<TData = unknown, TVariables = Record<string, unknown>
 				...optionsRef.current,
 				signal: controller.signal,
 			});
-			if (mountedRef.current) {
+			if (mountedRef.current && requestIdRef.current === myId) {
 				setData(result);
 				setError(undefined);
 			}
 		} catch (err) {
-			if (mountedRef.current) {
+			if (mountedRef.current && requestIdRef.current === myId) {
 				setError(err);
 			}
 		} finally {
-			if (mountedRef.current) {
+			if (mountedRef.current && requestIdRef.current === myId) {
 				setLoading(false);
 			}
 		}
@@ -93,6 +100,9 @@ export function useGraphQL<TData = unknown, TVariables = Record<string, unknown>
 			return;
 		}
 		void execute();
+		return () => {
+			controllerRef.current?.abort();
+		};
 	}, [enabled, execute]);
 
 	return { data, error, loading, refetch: execute };

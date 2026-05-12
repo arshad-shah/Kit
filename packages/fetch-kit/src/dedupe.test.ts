@@ -56,18 +56,80 @@ describe("createInflight", () => {
 		resolve(1);
 	});
 
-	it("get returns the in-flight promise for a key", () => {
+	it("get reports whether a key has an in-flight request", () => {
 		const inflight = createInflight<number>();
 		let resolve!: (n: number) => void;
-		const promise = inflight.run(
+		void inflight.run(
 			"k",
 			() =>
 				new Promise<number>((r) => {
 					resolve = r;
 				}),
 		);
-		expect(inflight.get("k")).toBe(promise);
+		expect(inflight.get("k")).toBeDefined();
 		expect(inflight.get("missing")).toBeUndefined();
 		resolve(0);
+	});
+
+	it("isolates per-caller AbortSignals from the shared runner", async () => {
+		const inflight = createInflight<number>();
+		const aController = new AbortController();
+		const bController = new AbortController();
+		let downstreamAborted = false;
+
+		const runner = (shared: AbortController): Promise<number> => {
+			return new Promise((resolve, reject) => {
+				const onAbort = (): void => {
+					downstreamAborted = true;
+					reject(new Error("inner aborted"));
+				};
+				shared.signal.addEventListener("abort", onAbort, { once: true });
+				setTimeout(() => {
+					shared.signal.removeEventListener("abort", onAbort);
+					resolve(42);
+				}, 30);
+			});
+		};
+
+		const a = inflight.run("k", runner, aController.signal);
+		const b = inflight.run("k", runner, bController.signal);
+
+		aController.abort();
+		await expect(a).rejects.toThrow();
+		// Inner fetch must not have been cancelled - b is still listening.
+		expect(downstreamAborted).toBe(false);
+		const bResult = await b;
+		expect(bResult).toBe(42);
+	});
+
+	it("cancels the shared runner only when every sharer aborts", async () => {
+		const inflight = createInflight<number>();
+		const aController = new AbortController();
+		const bController = new AbortController();
+		let downstreamAborted = false;
+
+		const runner = (shared: AbortController): Promise<number> => {
+			return new Promise((_resolve, reject) => {
+				shared.signal.addEventListener(
+					"abort",
+					() => {
+						downstreamAborted = true;
+						reject(new Error("aborted"));
+					},
+					{ once: true },
+				);
+			});
+		};
+
+		const a = inflight.run("k", runner, aController.signal);
+		const b = inflight.run("k", runner, bController.signal);
+
+		aController.abort();
+		await expect(a).rejects.toThrow();
+		expect(downstreamAborted).toBe(false);
+
+		bController.abort();
+		await expect(b).rejects.toThrow();
+		expect(downstreamAborted).toBe(true);
 	});
 });

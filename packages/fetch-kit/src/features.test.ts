@@ -351,4 +351,213 @@ describe("graphql", () => {
 		const api = createClient({ fetch: fetchSpy, graphqlEndpoint: "/graphql" });
 		expect(await api.graphql("query { x }")).toEqual({ x: 1 });
 	});
+
+	it("respects per-request cache.key override", async () => {
+		const fetchSpy = vi.fn(async () => jsonResponse({ data: { x: 1 } }));
+		const api = createClient({
+			fetch: fetchSpy,
+			graphqlEndpoint: "/graphql",
+			cache: true,
+		});
+		// Two semantically different queries, but sharing the same explicit key
+		// must collide in the cache.
+		await api.graphql("query { a }", { cache: { key: "shared" } });
+		await api.graphql("query { b }", { cache: { key: "shared" } });
+		expect(fetchSpy).toHaveBeenCalledOnce();
+	});
+});
+
+describe("dedupe and AbortSignal isolation", () => {
+	it("aborting one shared caller does not abort the others", async () => {
+		// Hold the response until both callers have subscribed.
+		let release!: () => void;
+		const gate = new Promise<void>((r) => {
+			release = r;
+		});
+		const fetchSpy = vi.fn(async (_url: string, init?: RequestInit) => {
+			// Surface fetch-level abort to callers as a NetworkError-equivalent.
+			await new Promise<void>((resolve, reject) => {
+				const signal = init?.signal;
+				if (signal?.aborted) {
+					reject(signal.reason ?? new DOMException("aborted", "AbortError"));
+					return;
+				}
+				const onAbort = (): void => {
+					signal?.removeEventListener("abort", onAbort);
+					reject(signal?.reason ?? new DOMException("aborted", "AbortError"));
+				};
+				signal?.addEventListener("abort", onAbort, { once: true });
+				void gate.then(() => {
+					signal?.removeEventListener("abort", onAbort);
+					resolve();
+				});
+			});
+			return jsonResponse({ ok: true });
+		});
+
+		const api = createClient({ fetch: fetchSpy });
+		const aController = new AbortController();
+		const bController = new AbortController();
+		const aPromise = api.get("/x", { signal: aController.signal });
+		const bPromise = api.get("/x", { signal: bController.signal });
+
+		// Caller A bails out. B must keep going.
+		aController.abort();
+		release();
+
+		await expect(aPromise).rejects.toBeInstanceOf(Error);
+		const bResult = await bPromise;
+		expect(bResult).toEqual({ ok: true });
+		// Both callers shared a single underlying fetch.
+		expect(fetchSpy).toHaveBeenCalledOnce();
+	});
+
+	it("underlying fetch aborts only when all sharers have aborted", async () => {
+		let downstreamAborted = false;
+		let release!: () => void;
+		const gate = new Promise<void>((r) => {
+			release = r;
+		});
+		const fetchSpy = vi.fn(async (_url: string, init?: RequestInit) => {
+			await new Promise<void>((resolve, reject) => {
+				const signal = init?.signal;
+				const onAbort = (): void => {
+					downstreamAborted = true;
+					signal?.removeEventListener("abort", onAbort);
+					reject(signal?.reason ?? new DOMException("aborted", "AbortError"));
+				};
+				signal?.addEventListener("abort", onAbort, { once: true });
+				void gate.then(() => {
+					signal?.removeEventListener("abort", onAbort);
+					resolve();
+				});
+			});
+			return jsonResponse({ ok: true });
+		});
+
+		const api = createClient({ fetch: fetchSpy });
+		const aController = new AbortController();
+		const bController = new AbortController();
+		const aPromise = api.get("/x", { signal: aController.signal });
+		const bPromise = api.get("/x", { signal: bController.signal });
+
+		// Only A aborts: fetch must NOT be aborted yet.
+		aController.abort();
+		await expect(aPromise).rejects.toBeInstanceOf(Error);
+		expect(downstreamAborted).toBe(false);
+
+		// B aborts too: now the underlying fetch is aborted.
+		bController.abort();
+		await expect(bPromise).rejects.toBeInstanceOf(Error);
+		expect(downstreamAborted).toBe(true);
+		release();
+	});
+
+	it("cache.set runs once per dedupe burst, not per sharer", async () => {
+		const setSpy = vi.fn();
+		const data = new Map<string, { data: unknown; expiresAt: number }>();
+		let release!: () => void;
+		const gate = new Promise<void>((r) => {
+			release = r;
+		});
+		const fetchSpy = vi.fn(async () => {
+			await gate;
+			return jsonResponse({ ok: true });
+		});
+		const api = createClient({
+			fetch: fetchSpy,
+			cache: {
+				store: {
+					get: (k) => data.get(k),
+					set: (k, v) => {
+						setSpy(k);
+						data.set(k, v);
+					},
+					delete: (k) => {
+						data.delete(k);
+					},
+					clear: () => data.clear(),
+				},
+			},
+		});
+
+		const [a, b, c] = [api.get("/x"), api.get("/x"), api.get("/x")];
+		release();
+		await Promise.all([a, b, c]);
+
+		expect(fetchSpy).toHaveBeenCalledOnce();
+		expect(setSpy).toHaveBeenCalledOnce();
+	});
+});
+
+describe("combineSignals listener lifecycle", () => {
+	it("removes its abort listener once the request settles", async () => {
+		const controller = new AbortController();
+		const addSpy = vi.spyOn(controller.signal, "addEventListener");
+		const removeSpy = vi.spyOn(controller.signal, "removeEventListener");
+
+		const fetchSpy = vi.fn(async () => jsonResponse({ ok: true }));
+		const api = createClient({ fetch: fetchSpy });
+
+		await api.get("/x", { signal: controller.signal });
+		await api.get("/x", { signal: controller.signal });
+		await api.get("/x", { signal: controller.signal });
+
+		// Every abort listener we attached on the caller's signal must have
+		// been removed after the request settled, so long-lived signals don't
+		// accumulate stale listeners.
+		const adds = addSpy.mock.calls.filter(([type]) => type === "abort").length;
+		const removes = removeSpy.mock.calls.filter(([type]) => type === "abort").length;
+		expect(adds).toBeGreaterThan(0);
+		expect(removes).toBe(adds);
+	});
+});
+
+describe("ttl: 0", () => {
+	it("disables caching rather than writing doomed entries", async () => {
+		const setSpy = vi.fn();
+		const data = new Map<string, { data: unknown; expiresAt: number }>();
+		const fetchSpy = vi.fn(async () => jsonResponse({ ok: true }));
+		const api = createClient({
+			fetch: fetchSpy,
+			cache: {
+				ttl: 0,
+				store: {
+					get: (k) => data.get(k),
+					set: (k, v) => {
+						setSpy(k);
+						data.set(k, v);
+					},
+					delete: (k) => {
+						data.delete(k);
+					},
+					clear: () => data.clear(),
+				},
+			},
+		});
+		await api.get("/x");
+		await api.get("/x");
+		expect(fetchSpy).toHaveBeenCalledTimes(2);
+		// And no doomed entries got written to the store.
+		expect(setSpy).not.toHaveBeenCalled();
+	});
+});
+
+describe("HEAD and OPTIONS methods", () => {
+	it("supports HEAD via the typed client", async () => {
+		const fetchSpy = vi.fn(async () => new Response(null, { status: 200 }));
+		const api = createClient({ fetch: fetchSpy });
+		await api.head("/x");
+		const init = fetchSpy.mock.calls[0]?.[1] as RequestInit;
+		expect(init.method).toBe("HEAD");
+		expect(init.body).toBeNull();
+	});
+
+	it("supports OPTIONS via the typed client", async () => {
+		const fetchSpy = vi.fn(async () => new Response(null, { status: 204 }));
+		const api = createClient({ fetch: fetchSpy });
+		await api.options("/x");
+		const init = fetchSpy.mock.calls[0]?.[1] as RequestInit;
+		expect(init.method).toBe("OPTIONS");
+	});
 });

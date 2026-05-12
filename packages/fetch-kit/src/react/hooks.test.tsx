@@ -219,3 +219,93 @@ describe("useGraphQL", () => {
 		expect(result.current.data).toBeUndefined();
 	});
 });
+
+describe("hook race conditions on deps change", () => {
+	function makeFetchSpy(wrap: (payload: { id: number }) => unknown = (p) => p) {
+		// Per-call resolver lets the test interleave responses out of order.
+		// Mirrors real fetch's behavior of rejecting when the AbortSignal fires.
+		const resolvers: Array<(payload: { id: number }) => void> = [];
+		const fetchSpy = vi.fn(async (_url: string, init?: RequestInit) => {
+			const payload = await new Promise<{ id: number }>((resolve, reject) => {
+				const signal = init?.signal;
+				if (signal?.aborted) {
+					reject(signal.reason ?? new DOMException("aborted", "AbortError"));
+					return;
+				}
+				let captured = false;
+				const onAbort = (): void => {
+					if (captured) return;
+					reject(signal?.reason ?? new DOMException("aborted", "AbortError"));
+				};
+				signal?.addEventListener("abort", onAbort, { once: true });
+				const wrappedResolve = (value: { id: number }): void => {
+					captured = true;
+					signal?.removeEventListener("abort", onAbort);
+					resolve(value);
+				};
+				resolvers.push(wrappedResolve);
+			});
+			return new Response(JSON.stringify(wrap(payload)), {
+				headers: { "content-type": "application/json" },
+			});
+		});
+		return { fetchSpy, resolvers };
+	}
+
+	it("useFetch ignores a stale response that resolves after deps change", async () => {
+		const { fetchSpy, resolvers } = makeFetchSpy();
+		const client = createClient({ fetch: fetchSpy });
+
+		const { result, rerender } = renderHook(
+			({ id }: { id: number }) => useFetch<{ id: number }>(client, "/x", { deps: [id] }),
+			{ initialProps: { id: 1 } },
+		);
+
+		// Change deps before the first fetch resolves.
+		rerender({ id: 2 });
+
+		await waitFor(() => expect(resolvers.length).toBe(2));
+
+		// Resolve the SECOND request first, then the stale first request.
+		await act(async () => {
+			resolvers[1]?.({ id: 2 });
+			await Promise.resolve();
+			resolvers[0]?.({ id: 1 });
+			await Promise.resolve();
+			await Promise.resolve();
+		});
+
+		await waitFor(() => expect(result.current.loading).toBe(false));
+		// data must reflect the latest deps, not the stale request that landed second.
+		expect(result.current.data?.id).toBe(2);
+	});
+
+	it("useGraphQL ignores a stale response that resolves after deps change", async () => {
+		const { fetchSpy, resolvers } = makeFetchSpy((p) => ({ data: { id: p.id } }));
+		const client = createClient({ fetch: fetchSpy, graphqlEndpoint: "/graphql" });
+
+		const { result, rerender } = renderHook(
+			({ id }: { id: number }) =>
+				useGraphQL<{ id: number }>(client, "query Q($id: ID!) { id }", {
+					variables: { id },
+					deps: [id],
+				}),
+			{ initialProps: { id: 1 } },
+		);
+
+		rerender({ id: 2 });
+
+		await waitFor(() => expect(resolvers.length).toBe(2));
+
+		await act(async () => {
+			resolvers[1]?.({ id: 2 });
+			await Promise.resolve();
+			resolvers[0]?.({ id: 1 });
+			await Promise.resolve();
+			await Promise.resolve();
+		});
+
+		await waitFor(() => expect(result.current.loading).toBe(false));
+		expect(result.current.data?.id).toBe(2);
+	});
+});
