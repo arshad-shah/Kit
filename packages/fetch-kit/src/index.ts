@@ -1,7 +1,9 @@
+export { createMemoryCache, defaultCacheKey } from "./cache.js";
 export { createClient } from "./create-client.js";
 export {
 	AbortError,
 	FetchKitError,
+	GraphQLError,
 	HttpError,
 	NetworkError,
 	TimeoutError,
@@ -9,8 +11,16 @@ export {
 } from "./errors.js";
 export type {
 	BackoffStrategy,
+	CacheConfig,
+	CacheEntry,
+	CacheOption,
+	CacheStore,
 	Client,
 	ClientConfig,
+	GraphQLFormattedError,
+	GraphQLOptions,
+	GraphQLRequest,
+	GraphQLResponse,
 	HttpMethod,
 	RequestInterceptor,
 	RequestOptions,

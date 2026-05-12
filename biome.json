@@ -13,6 +13,7 @@
 			"**/.stryker-tmp/**",
 			"**/node_modules/**",
 			"**/.astro/**",
+			"**/*.astro",
 			"**/.changeset/*.md",
 			"pnpm-lock.yaml"
 		]

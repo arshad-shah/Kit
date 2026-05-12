@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { createClient } from "../create-client.js";
 import { useFetch } from "./use-fetch.js";
+import { useGraphQL } from "./use-graphql.js";
 import { useMutation } from "./use-mutation.js";
 
 function jsonResponse(body: unknown, init?: ResponseInit): Response {
@@ -167,5 +168,54 @@ describe("useMutation", () => {
 		});
 		expect(result.current.data).toBeUndefined();
 		expect(result.current.error).toBeUndefined();
+	});
+});
+
+describe("useGraphQL", () => {
+	it("loads data on mount", async () => {
+		const fetchSpy = vi.fn(async () => jsonResponse({ data: { me: { id: "1" } } }));
+		const client = createClient({ fetch: fetchSpy, graphqlEndpoint: "/graphql" });
+
+		const { result } = renderHook(() =>
+			useGraphQL<{ me: { id: string } }>(client, "query Me { me { id } }"),
+		);
+
+		expect(result.current.loading).toBe(true);
+		await waitFor(() => expect(result.current.loading).toBe(false));
+		expect(result.current.data).toEqual({ me: { id: "1" } });
+		expect(result.current.error).toBeUndefined();
+	});
+
+	it("does not run when enabled is false", async () => {
+		const fetchSpy = vi.fn(async () => jsonResponse({ data: { x: 1 } }));
+		const client = createClient({ fetch: fetchSpy, graphqlEndpoint: "/graphql" });
+
+		const { result } = renderHook(() => useGraphQL(client, "query { x }", { enabled: false }));
+		await waitFor(() => expect(result.current.loading).toBe(false));
+		expect(fetchSpy).not.toHaveBeenCalled();
+	});
+
+	it("refetches when refetch is called", async () => {
+		const fetchSpy = vi.fn(async () => jsonResponse({ data: { x: 1 } }));
+		const client = createClient({ fetch: fetchSpy, graphqlEndpoint: "/graphql" });
+
+		const { result } = renderHook(() => useGraphQL(client, "query { x }"));
+		await waitFor(() => expect(result.current.loading).toBe(false));
+		await act(async () => {
+			await result.current.refetch();
+		});
+		expect(fetchSpy).toHaveBeenCalledTimes(2);
+	});
+
+	it("captures graphql errors as error state", async () => {
+		const fetchSpy = vi.fn(async () =>
+			jsonResponse({ data: null, errors: [{ message: "denied" }] }),
+		);
+		const client = createClient({ fetch: fetchSpy, graphqlEndpoint: "/graphql" });
+
+		const { result } = renderHook(() => useGraphQL(client, "query { x }"));
+		await waitFor(() => expect(result.current.loading).toBe(false));
+		expect(result.current.error).toBeDefined();
+		expect(result.current.data).toBeUndefined();
 	});
 });

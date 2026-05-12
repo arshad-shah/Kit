@@ -34,15 +34,20 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "1.9.4",
-		"@changesets/cli": "2.27.11",
-		"@types/node": "22.10.2",
-		"tsup": "8.3.5",
+		"@changesets/cli": "2.31.0",
+		"@types/node": "22.18.13",
+		"tsup": "8.5.1",
 		"typescript": "5.7.2",
-		"vitest": "2.1.9"
+		"vitest": "3.2.4"
 	},
 	"pnpm": {
 		"overrides": {
-			"zod-to-json-schema": "3.23.5"
+			"zod-to-json-schema": "3.23.5",
+			"esbuild": "^0.25.10",
+			"ajv": "^8.18.0",
+			"yaml": "^2.8.3",
+			"tmp": "^0.2.4",
+			"vite": "^6.4.2"
 		}
 	},
 	"volta": {

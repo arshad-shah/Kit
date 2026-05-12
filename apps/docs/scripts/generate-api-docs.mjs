@@ -27,14 +27,7 @@
  * uses), so we do the rewriting ourselves.
  */
 import { existsSync, rmSync } from "node:fs";
-import {
-	mkdir,
-	readdir,
-	readFile,
-	rename,
-	stat,
-	writeFile,
-} from "node:fs/promises";
+import { mkdir, readFile, readdir, rename, stat, writeFile } from "node:fs/promises";
 import { dirname, join, posix, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Application, TSConfigReader } from "typedoc";
@@ -128,10 +121,8 @@ for (const pkg of PACKAGES) {
 
 			// URL slug-dir of the current file:
 			//   <outDir>/main/classes/NetworkError.md  →  /<pkg>/api/main/classes/
-			const fsRel = posix.normalize(
-				full.replace(outDir, "").replace(/\\/g, "/"),
-			);
-			const fileDirSlug = (apiSlugRoot + posix.dirname(fsRel) + "/")
+			const fsRel = posix.normalize(full.replace(outDir, "").replace(/\\/g, "/"));
+			const fileDirSlug = `${apiSlugRoot}${posix.dirname(fsRel)}/`
 				.replace(/\/+/g, "/")
 				.toLowerCase();
 
@@ -145,10 +136,7 @@ for (const pkg of PACKAGES) {
 					// Redirect old `index` module references to `main` (only when we
 					// actually performed the rename above).
 					if (renamedIndexModule) {
-						abs = abs.replace(
-							new RegExp(`^${apiSlugRoot}/index(/|$)`),
-							`${apiSlugRoot}/main$1`,
-						);
+						abs = abs.replace(new RegExp(`^${apiSlugRoot}/index(/|$)`), `${apiSlugRoot}/main$1`);
 					}
 					// Trailing `/index` collapses to the directory's root URL.
 					abs = abs.replace(/\/index$/, "");
@@ -162,10 +150,7 @@ for (const pkg of PACKAGES) {
 				const baseName = entry.replace(/\.md$/, "");
 				let title = baseName;
 				if (baseName === "index") {
-					title =
-						dir === outDir
-							? `${pkg.name} API`
-							: (dir.split(/[/\\]/).pop() ?? "index");
+					title = dir === outDir ? `${pkg.name} API` : (dir.split(/[/\\]/).pop() ?? "index");
 				}
 				content = `---\ntitle: "${title}"\n---\n\n${content}`;
 			}
