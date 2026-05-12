@@ -116,6 +116,41 @@ export type CacheOption =
 	  };
 
 /**
+ * Result returned by an {@link AuthFn}.
+ *
+ * - `string` — used as the value of the `Authorization` header verbatim.
+ *   Caller is responsible for any scheme prefix, e.g. `"Bearer xyz"`,
+ *   `"Basic dXNlcjpwYXNz"`, `"Token xyz"`, or a raw API key.
+ * - Object form — set a custom header (e.g. `"X-Api-Key"`) and value, and/or
+ *   keep the convenience of providing scheme + token separately.
+ * - `null` / `undefined` — no auth header added for this request.
+ */
+export type AuthResult =
+	| string
+	| {
+			/** Header name. Defaults to `"Authorization"`. */
+			header?: string;
+			/**
+			 * Optional scheme prefix joined to `token` with a single space.
+			 * Omit to pass `token` through verbatim — useful for custom schemes
+			 * or API-key headers that take a raw value.
+			 */
+			scheme?: string;
+			/** The credential value (or full header value when `scheme` is omitted). */
+			token: string;
+	  }
+	| null
+	| undefined;
+
+/**
+ * Function that resolves the credential to attach to a request.
+ *
+ * Called for each request, so callers can plug in token refresh, expiry
+ * checks, or per-request scoping.
+ */
+export type AuthFn = () => AuthResult | Promise<AuthResult>;
+
+/**
  * Configuration for {@link createClient}.
  */
 export type ClientConfig = {
@@ -128,10 +163,16 @@ export type ClientConfig = {
 	/** Default headers merged into every request. */
 	headers?: Record<string, string>;
 	/**
-	 * Function that returns an auth token, called for each request.
-	 * Result is appended as `Authorization: Bearer <token>` if non-null.
+	 * Resolve the credential to attach to each request.
+	 *
+	 * Returns the full `Authorization` header value (e.g. `"Bearer xyz"`,
+	 * `"Basic dXNlcjpwYXNz"`, `"Token xyz"`, or a raw key). Return an object
+	 * to set a custom header (`X-Api-Key`, etc.) or to split scheme + token.
+	 * Return `null`/`undefined` to skip auth for the request.
+	 *
+	 * @see AuthResult
 	 */
-	auth?: () => string | null | undefined | Promise<string | null | undefined>;
+	auth?: AuthFn;
 	/** Hook called when any request errors. Useful for telemetry. */
 	onError?: (error: unknown) => void;
 	/** Request interceptors run in order. */

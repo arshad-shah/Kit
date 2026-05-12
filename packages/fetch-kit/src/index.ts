@@ -10,6 +10,8 @@ export {
 	ValidationError,
 } from "./errors.js";
 export type {
+	AuthFn,
+	AuthResult,
 	BackoffStrategy,
 	CacheConfig,
 	CacheEntry,

@@ -17,7 +17,11 @@ export const api = createClient({
   baseUrl: "https://api.example.com",
   timeout: 10_000,
   retry: { attempts: 3, backoff: "exponential" },
-  auth: () => localStorage.getItem("token"),
+  // auth() returns the full Authorization header value - pick your scheme.
+  auth: () => {
+    const token = localStorage.getItem("token");
+    return token ? `Bearer ${token}` : null;
+  },
 });
 
 try {
@@ -28,6 +32,24 @@ try {
   }
 }
 ```
+
+### Auth schemes
+
+`auth` is scheme-agnostic. It can return:
+
+- A string — used as the `Authorization` header verbatim:
+  ```ts
+  auth: () => "Bearer xyz"     // Bearer (most common)
+  auth: () => "Basic dXNlcjpwYXNz"
+  auth: () => "Token xyz"       // GitHub-style
+  auth: () => "raw-api-key"     // no scheme at all
+  ```
+- An object — for custom headers (API keys, etc.) or split scheme + token:
+  ```ts
+  auth: () => ({ header: "X-Api-Key", token: key })
+  auth: () => ({ scheme: "Bearer", token: jwt })
+  ```
+- `null` / `undefined` — skip auth for this request (e.g. anonymous endpoints).
 
 ## Caching
 

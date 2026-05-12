@@ -130,9 +130,17 @@ function resolveCacheConfig(cache: ClientConfig["cache"]): ResolvedCache | null 
  *   baseUrl: "/api",
  *   timeout: 10_000,
  *   retry: { attempts: 3, backoff: "exponential" },
- *   auth: () => localStorage.getItem("token"),
+ *   // auth() returns the full Authorization header value. Pick your scheme.
+ *   auth: () => {
+ *     const token = localStorage.getItem("token");
+ *     return token ? `Bearer ${token}` : null;
+ *   },
  *   onError: (err) => logger.error(err),
  * });
+ *
+ * // Or with a custom header / scheme, no string concatenation:
+ * createClient({ auth: () => ({ header: "X-Api-Key", token: key }) });
+ * createClient({ auth: () => ({ scheme: "Token", token: key }) });
  * ```
  *
  * @example With caching + dedupe + GraphQL
@@ -194,9 +202,17 @@ export function createClient(config: ClientConfig = {}): Client {
 			Object.assign(headers, bodyHeaders, options.headers);
 
 			if (auth) {
-				const token = await auth();
-				if (token) {
-					Object.assign(headers, { Authorization: `Bearer ${token}` });
+				const result = await auth();
+				if (result) {
+					const headerName =
+						typeof result === "string" ? "Authorization" : (result.header ?? "Authorization");
+					const headerValue =
+						typeof result === "string"
+							? result
+							: result.scheme
+								? `${result.scheme} ${result.token}`
+								: result.token;
+					headers[headerName] = headerValue;
 				}
 			}
 
