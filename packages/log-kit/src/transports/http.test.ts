@@ -130,4 +130,62 @@ describe("httpTransport", () => {
 		expect(headers["x-api-key"]).toBe("secret");
 		expect(headers["Content-Type"]).toBe("application/json");
 	});
+
+	it("reports non-2xx responses via onError", async () => {
+		const fetchSpy = vi.fn(async () => new Response("nope", { status: 500, statusText: "Boom" }));
+		const onError = vi.fn();
+		const transport = httpTransport({
+			url: "https://x.com",
+			batchSize: 1,
+			fetch: fetchSpy,
+			onError,
+		});
+
+		transport.write(record());
+		await vi.runAllTimersAsync();
+
+		expect(onError).toHaveBeenCalledOnce();
+		const [err, info] = onError.mock.calls[0] ?? [];
+		expect(err).toBeInstanceOf(Error);
+		expect((err as Error).message).toMatch(/500/);
+		expect(info).toMatchObject({ op: "flush", url: "https://x.com" });
+	});
+
+	it("reports fetch rejection via onError", async () => {
+		const fetchSpy = vi.fn(async () => {
+			throw new Error("offline");
+		});
+		const onError = vi.fn();
+		const transport = httpTransport({
+			url: "https://x.com",
+			batchSize: 1,
+			fetch: fetchSpy,
+			onError,
+		});
+
+		transport.write(record());
+		await vi.runAllTimersAsync();
+
+		expect(onError).toHaveBeenCalledOnce();
+		expect((onError.mock.calls[0]?.[0] as Error).message).toBe("offline");
+	});
+
+	it("swallows errors thrown by a buggy onError handler", async () => {
+		const fetchSpy = vi.fn(async () => {
+			throw new Error("offline");
+		});
+		const onError = vi.fn(() => {
+			throw new Error("handler buggy");
+		});
+		const transport = httpTransport({
+			url: "https://x.com",
+			batchSize: 1,
+			fetch: fetchSpy,
+			onError,
+		});
+
+		// Even with a buggy onError, write/flush must not throw.
+		expect(() => transport.write(record())).not.toThrow();
+		await expect(vi.runAllTimersAsync()).resolves.not.toThrow();
+	});
 });
