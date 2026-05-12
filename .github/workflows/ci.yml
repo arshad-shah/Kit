@@ -39,12 +39,8 @@ jobs:
         run: pnpm typecheck
 
   test:
-    name: Test (Node ${{ matrix.node }})
+    name: Test
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        node: [20, 22]
     steps:
       - uses: actions/checkout@v4
 
@@ -54,20 +50,16 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node }}
+          node-version: 22
           cache: pnpm
 
-      # The docs app depends on astro 6, which transitively requires Node
-      # >=22.12 via @astrojs/prism. Library packages themselves still target
-      # Node 20+ - skipping docs here keeps the matrix legs honest.
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile --filter '!docs'
+        run: pnpm install --frozen-lockfile
 
       - name: Run tests with coverage
         run: pnpm test:coverage
 
       - name: Upload coverage to Codecov
-        if: matrix.node == 22
         uses: codecov/codecov-action@v5
         with:
           files: ./packages/*/coverage/lcov.info
