@@ -33,12 +33,12 @@
 		"clean": "pnpm -r exec rm -rf dist node_modules .turbo coverage && rm -rf node_modules"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "1.9.4",
+		"@biomejs/biome": "2.4.15",
 		"@changesets/cli": "2.31.0",
-		"@types/node": "22.18.13",
+		"@types/node": "25.7.0",
 		"tsup": "8.5.1",
-		"typescript": "5.7.2",
-		"vitest": "3.2.4"
+		"typescript": "6.0.3",
+		"vitest": "4.1.6"
 	},
 	"pnpm": {
 		"overrides": {
