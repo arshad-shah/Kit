@@ -1,5 +1,12 @@
 # @arshad-shah/log-kit
 
+[![npm version](https://img.shields.io/npm/v/@arshad-shah/log-kit?color=cb3837&logo=npm)](https://www.npmjs.com/package/@arshad-shah/log-kit)
+[![npm downloads](https://img.shields.io/npm/dm/@arshad-shah/log-kit?color=cb3837&logo=npm)](https://www.npmjs.com/package/@arshad-shah/log-kit)
+[![Bundle size](https://img.shields.io/bundlephobia/minzip/@arshad-shah/log-kit?label=gzip)](https://bundlephobia.com/package/@arshad-shah/log-kit)
+[![Types](https://img.shields.io/npm/types/@arshad-shah/log-kit?color=3178c6&logo=typescript&logoColor=white)](https://www.npmjs.com/package/@arshad-shah/log-kit)
+[![License](https://img.shields.io/npm/l/@arshad-shah/log-kit)](../../LICENSE)
+[![CI](https://github.com/arshad-shah/kit/actions/workflows/ci.yml/badge.svg)](https://github.com/arshad-shah/kit/actions/workflows/ci.yml)
+
 Structured logger with pluggable transports and performance markers. Zero dependencies.
 
 **1.4 KB core, transports tree-shaken on separate subpath imports.**
