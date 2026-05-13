@@ -52,11 +52,7 @@
 			"tmp": "^0.2.4",
 			"vite": "^6.4.2"
 		},
-		"onlyBuiltDependencies": [
-			"@biomejs/biome",
-			"esbuild",
-			"sharp"
-		]
+		"onlyBuiltDependencies": ["@biomejs/biome", "esbuild", "sharp"]
 	},
 	"volta": {
 		"node": "24.15.0",

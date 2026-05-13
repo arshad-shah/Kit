@@ -137,9 +137,7 @@ export default defineConfig({
 				},
 				{
 					label: "Operations",
-					items: [
-						{ label: "Bundle size", slug: "ops/bundle-size" },
-					],
+					items: [{ label: "Bundle size", slug: "ops/bundle-size" }],
 				},
 			],
 		}),
