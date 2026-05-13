@@ -18,9 +18,13 @@ export default defineConfig({
 				dark: "./src/assets/logo-dark.svg",
 				// replacesTitle: true,
 			},
-			social: {
-				github: "https://github.com/arshad-shah/kit",
-			},
+			social: [
+				{
+					icon: "github",
+					label: "GitHub",
+					href: "https://github.com/arshad-shah/kit",
+				},
+			],
 			customCss: ["./src/styles/terminal.css"],
 			editLink: {
 				baseUrl: "https://github.com/arshad-shah/kit/edit/master/apps/docs/",
@@ -92,7 +96,10 @@ export default defineConfig({
 						{ label: "Persistence", slug: "store-kit/persistence" },
 						{ label: "Migrations", slug: "store-kit/migrations" },
 						{ label: "Recipes", slug: "store-kit/recipes" },
-						{ label: "API reference", autogenerate: { directory: "store-kit/api" } },
+						{
+							label: "API reference",
+							items: [{ autogenerate: { directory: "store-kit/api" } }],
+						},
 					],
 				},
 				{
@@ -103,7 +110,10 @@ export default defineConfig({
 						{ label: "Retries", slug: "fetch-kit/retries" },
 						{ label: "Schema validation", slug: "fetch-kit/schema-validation" },
 						{ label: "React hooks", slug: "fetch-kit/react-hooks" },
-						{ label: "API reference", autogenerate: { directory: "fetch-kit/api" } },
+						{
+							label: "API reference",
+							items: [{ autogenerate: { directory: "fetch-kit/api" } }],
+						},
 					],
 				},
 				{
@@ -112,7 +122,10 @@ export default defineConfig({
 						{ label: "Overview", slug: "log-kit/overview" },
 						{ label: "Transports", slug: "log-kit/transports" },
 						{ label: "Performance markers", slug: "log-kit/perf-markers" },
-						{ label: "API reference", autogenerate: { directory: "log-kit/api" } },
+						{
+							label: "API reference",
+							items: [{ autogenerate: { directory: "log-kit/api" } }],
+						},
 					],
 				},
 				{
@@ -121,7 +134,10 @@ export default defineConfig({
 						{ label: "Overview", slug: "config-kit/overview" },
 						{ label: "Sources", slug: "config-kit/sources" },
 						{ label: "Schema patterns", slug: "config-kit/schema-patterns" },
-						{ label: "API reference", autogenerate: { directory: "config-kit/api" } },
+						{
+							label: "API reference",
+							items: [{ autogenerate: { directory: "config-kit/api" } }],
+						},
 					],
 				},
 				{
