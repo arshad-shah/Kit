@@ -17,6 +17,12 @@ jobs:
   release:
     name: Version and release
     runs-on: ubuntu-latest
+    # Gated environment so npm publishes can be reviewed (and audited via the
+    # Deployments view) before they happen. Configure required reviewers on
+    # the `npm-publish` environment in repo settings.
+    environment:
+      name: npm-publish
+      url: https://www.npmjs.com/~arshad-shah
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
