@@ -1,8 +1,15 @@
 {
 	"name": "@arshad-shah/log-kit",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"description": "Tiny structured logger with pluggable transports and perf markers.",
-	"keywords": ["logger", "log", "structured", "telemetry", "perf", "typescript"],
+	"keywords": [
+		"logger",
+		"log",
+		"structured",
+		"telemetry",
+		"perf",
+		"typescript"
+	],
 	"author": "Arshad Shah <hello@arshadshah.com>",
 	"license": "MIT",
 	"repository": {
@@ -70,7 +77,11 @@
 		},
 		"./package.json": "./package.json"
 	},
-	"files": ["dist", "README.md", "LICENSE"],
+	"files": [
+		"dist",
+		"README.md",
+		"LICENSE"
+	],
 	"publishConfig": {
 		"access": "public",
 		"provenance": true
@@ -128,7 +139,12 @@
 			"path": "dist/transports/datadog.mjs",
 			"limit": "1.25 KB",
 			"gzip": true,
-			"ignore": ["module", "os", "node:module", "node:os"]
+			"ignore": [
+				"module",
+				"os",
+				"node:module",
+				"node:os"
+			]
 		}
 	]
 }
