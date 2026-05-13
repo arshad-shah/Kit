@@ -58,8 +58,12 @@ jobs:
         id: changesets
         uses: changesets/action@d94a5c301145045a0960133674e003b265942a22 # v1.8.0
         with:
-          version: pnpm version
-          publish: pnpm release
+          # `pnpm run` is required so pnpm invokes the package.json `version`
+          # script (`changeset version && pnpm install --lockfile-only`).
+          # Plain `pnpm version` is pnpm's built-in command, which only prints
+          # runtime versions and does not consume changesets.
+          version: pnpm run version
+          publish: pnpm run release
           commit: "chore: version packages"
           title: "chore: version packages"
         env:
