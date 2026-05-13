@@ -28,7 +28,7 @@
 		"docs:build": "pnpm --filter=docs build",
 		"docs:preview": "pnpm --filter=docs preview",
 		"changeset": "changeset",
-		"version": "changeset version && pnpm install --lockfile-only",
+		"version": "changeset version && pnpm install --lockfile-only && biome format --write .",
 		"release": "pnpm build && changeset publish",
 		"ci": "pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm size && pnpm publint",
 		"clean": "pnpm -r exec rm -rf dist node_modules .turbo coverage && rm -rf node_modules"
