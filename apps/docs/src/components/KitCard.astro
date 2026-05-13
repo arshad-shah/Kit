@@ -1,9 +1,10 @@
 ---
-import { Icon } from "astro-icon/components";
+import { Icon } from "@astrojs/starlight/components";
+import type { ComponentProps } from "astro/types";
 
 interface Props {
 	title: string;
-	icon: string;
+	icon: ComponentProps<typeof Icon>["name"];
 	href?: string;
 }
 
