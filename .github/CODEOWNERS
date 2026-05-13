@@ -1,0 +1,28 @@
+# All files require @arshad-shah review by default.
+*                                       @arshad-shah
+
+# CI / build / release infrastructure.
+/.github/                               @arshad-shah
+/.github/workflows/                     @arshad-shah
+/.changeset/                            @arshad-shah
+
+# Workspace + lock + tooling pins.
+/package.json                           @arshad-shah
+/pnpm-workspace.yaml                    @arshad-shah
+/pnpm-lock.yaml                         @arshad-shah
+/biome.json                             @arshad-shah
+/.nvmrc                                 @arshad-shah
+/.npmrc                                 @arshad-shah
+
+# Published packages.
+/packages/config-kit/                   @arshad-shah
+/packages/fetch-kit/                    @arshad-shah
+/packages/log-kit/                      @arshad-shah
+/packages/store-kit/                    @arshad-shah
+/packages/internal-config/              @arshad-shah
+
+# Public surface: package.json exports/version changes need explicit review.
+/packages/*/package.json                @arshad-shah
+
+# Docs site.
+/apps/docs/                             @arshad-shah

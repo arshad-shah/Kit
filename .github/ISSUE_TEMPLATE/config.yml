@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or idea
+    url: https://github.com/arshad-shah/kit/discussions
+    about: For questions, design discussions, and usage help. Issues are reserved for actionable bug reports and concrete feature requests.
+  - name: Security vulnerability
+    url: https://github.com/arshad-shah/kit/security/advisories/new
+    about: Private disclosure channel. Please do NOT report security issues in public Issues.
+  - name: Documentation
+    url: https://kit.arshadshah.com
+    about: Read the docs before filing an issue.

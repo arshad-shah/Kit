@@ -19,29 +19,54 @@
 	"types": "./dist/index.d.ts",
 	"exports": {
 		".": {
-			"types": "./dist/index.d.ts",
-			"import": "./dist/index.mjs",
-			"require": "./dist/index.cjs"
+			"import": {
+				"types": "./dist/index.d.ts",
+				"default": "./dist/index.mjs"
+			},
+			"require": {
+				"types": "./dist/index.d.cts",
+				"default": "./dist/index.cjs"
+			}
 		},
 		"./transports/console": {
-			"types": "./dist/transports/console.d.ts",
-			"import": "./dist/transports/console.mjs",
-			"require": "./dist/transports/console.cjs"
+			"import": {
+				"types": "./dist/transports/console.d.ts",
+				"default": "./dist/transports/console.mjs"
+			},
+			"require": {
+				"types": "./dist/transports/console.d.cts",
+				"default": "./dist/transports/console.cjs"
+			}
 		},
 		"./transports/http": {
-			"types": "./dist/transports/http.d.ts",
-			"import": "./dist/transports/http.mjs",
-			"require": "./dist/transports/http.cjs"
+			"import": {
+				"types": "./dist/transports/http.d.ts",
+				"default": "./dist/transports/http.mjs"
+			},
+			"require": {
+				"types": "./dist/transports/http.d.cts",
+				"default": "./dist/transports/http.cjs"
+			}
 		},
 		"./transports/file": {
-			"types": "./dist/transports/file.d.ts",
-			"import": "./dist/transports/file.mjs",
-			"require": "./dist/transports/file.cjs"
+			"import": {
+				"types": "./dist/transports/file.d.ts",
+				"default": "./dist/transports/file.mjs"
+			},
+			"require": {
+				"types": "./dist/transports/file.d.cts",
+				"default": "./dist/transports/file.cjs"
+			}
 		},
 		"./transports/datadog": {
-			"types": "./dist/transports/datadog.d.ts",
-			"import": "./dist/transports/datadog.mjs",
-			"require": "./dist/transports/datadog.cjs"
+			"import": {
+				"types": "./dist/transports/datadog.d.ts",
+				"default": "./dist/transports/datadog.mjs"
+			},
+			"require": {
+				"types": "./dist/transports/datadog.d.cts",
+				"default": "./dist/transports/datadog.cjs"
+			}
 		},
 		"./package.json": "./package.json"
 	},
@@ -74,7 +99,12 @@
 		"vitest": "3.2.4"
 	},
 	"size-limit": [
-		{ "name": "Core (ESM)", "path": "dist/index.mjs", "limit": "2 KB", "gzip": true },
+		{
+			"name": "Core (ESM)",
+			"path": "dist/index.mjs",
+			"limit": "2 KB",
+			"gzip": true
+		},
 		{
 			"name": "Console transport",
 			"path": "dist/transports/console.mjs",
@@ -87,7 +117,12 @@
 			"limit": "1.5 KB",
 			"gzip": true
 		},
-		{ "name": "File transport", "path": "dist/transports/file.mjs", "limit": "1 KB", "gzip": true },
+		{
+			"name": "File transport",
+			"path": "dist/transports/file.mjs",
+			"limit": "1 KB",
+			"gzip": true
+		},
 		{
 			"name": "Datadog transport",
 			"path": "dist/transports/datadog.mjs",

@@ -19,14 +19,24 @@
 	"types": "./dist/index.d.ts",
 	"exports": {
 		".": {
-			"types": "./dist/index.d.ts",
-			"import": "./dist/index.mjs",
-			"require": "./dist/index.cjs"
+			"import": {
+				"types": "./dist/index.d.ts",
+				"default": "./dist/index.mjs"
+			},
+			"require": {
+				"types": "./dist/index.d.cts",
+				"default": "./dist/index.cjs"
+			}
 		},
 		"./react": {
-			"types": "./dist/react.d.ts",
-			"import": "./dist/react.mjs",
-			"require": "./dist/react.cjs"
+			"import": {
+				"types": "./dist/react.d.ts",
+				"default": "./dist/react.mjs"
+			},
+			"require": {
+				"types": "./dist/react.d.cts",
+				"default": "./dist/react.cjs"
+			}
 		},
 		"./package.json": "./package.json"
 	},
@@ -50,8 +60,12 @@
 		"zod": ">=3.22.0"
 	},
 	"peerDependenciesMeta": {
-		"react": { "optional": true },
-		"zod": { "optional": true }
+		"react": {
+			"optional": true
+		},
+		"zod": {
+			"optional": true
+		}
 	},
 	"devDependencies": {
 		"@arshad-shah/internal-config": "workspace:*",

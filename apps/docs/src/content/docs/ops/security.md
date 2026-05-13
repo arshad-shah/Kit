@@ -56,7 +56,7 @@ Future releases of that package use OIDC.
 
 ## Dependency hygiene
 
-- `pnpm audit --prod --audit-level=high` runs as a dedicated job in CI; high or critical advisories fail the build
+- `pnpm audit --audit-level=high` runs as a dedicated job in CI; high or critical advisories fail the build
 - Dependabot opens grouped PRs weekly for non-security updates and immediate PRs for security advisories
 - Dev dependencies are pinned with exact versions; runtime dependencies use `^` for patch flexibility
 - New dependencies require an explicit justification in the changeset

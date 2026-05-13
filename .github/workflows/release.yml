@@ -18,16 +18,16 @@ jobs:
     name: Version and release
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           # Full history needed for changesets to detect changed packages
           fetch-depth: 0
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@a15d269cd4658e1107c09f1fabf4cbd7bd1f308a # v4.4.0
         with:
           version: 9.15.0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
           cache: pnpm
@@ -43,9 +43,14 @@ jobs:
       - name: Run tests
         run: pnpm test
 
+      # npm OIDC trusted publishing requires npm >= 11.5.1. The npm bundled with
+      # Node 22 is older, so we pin a known-good version here. Bump deliberately.
+      - name: Pin npm to OIDC-supporting version
+        run: npm install -g npm@11.5.1
+
       - name: Create release PR or publish to npm
         id: changesets
-        uses: changesets/action@v1
+        uses: changesets/action@d94a5c301145045a0960133674e003b265942a22 # v1.8.0
         with:
           version: pnpm version
           publish: pnpm release
@@ -53,6 +58,8 @@ jobs:
           title: "chore: version packages"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Enables npm to embed provenance attestation via OIDC.
+          NPM_CONFIG_PROVENANCE: "true"
           # No NPM_TOKEN here - OIDC handles auth via id-token: write permission.
           # In npm, configure trusted publishers for each package pointing at this
           # repo + workflow. See: https://docs.npmjs.com/trusted-publishers

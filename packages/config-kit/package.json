@@ -19,9 +19,14 @@
 	"types": "./dist/index.d.ts",
 	"exports": {
 		".": {
-			"types": "./dist/index.d.ts",
-			"import": "./dist/index.mjs",
-			"require": "./dist/index.cjs"
+			"import": {
+				"types": "./dist/index.d.ts",
+				"default": "./dist/index.mjs"
+			},
+			"require": {
+				"types": "./dist/index.d.cts",
+				"default": "./dist/index.cjs"
+			}
 		},
 		"./package.json": "./package.json"
 	},
@@ -45,7 +50,9 @@
 		"zod": ">=3.22.0"
 	},
 	"peerDependenciesMeta": {
-		"@arshad-shah/log-kit": { "optional": true }
+		"@arshad-shah/log-kit": {
+			"optional": true
+		}
 	},
 	"devDependencies": {
 		"@arshad-shah/internal-config": "workspace:*",

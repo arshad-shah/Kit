@@ -61,6 +61,13 @@ Add a changeset with every PR that affects a published package:
 pnpm changeset
 ```
 
+## Project policies
+
+- [Security policy & vulnerability reporting](SECURITY.md)
+- [Code of conduct](CODE_OF_CONDUCT.md)
+- [Getting help / Support](SUPPORT.md)
+- [Contributing guide](CONTRIBUTING.md)
+
 ## License
 
 MIT © Arshad Shah
