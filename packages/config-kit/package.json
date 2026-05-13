@@ -1,6 +1,6 @@
 {
 	"name": "@arshad-shah/config-kit",
-	"version": "0.1.0",
+	"version": "1.0.0",
 	"description": "Typed config loader: env vars, .env files, and remote sources merged with schema validation.",
 	"keywords": ["config", "env", "dotenv", "zod", "validation", "typescript"],
 	"author": "Arshad Shah <hello@arshadshah.com>",

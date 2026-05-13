@@ -1,6 +1,6 @@
 {
 	"name": "@arshad-shah/store-kit",
-	"version": "0.1.0",
+	"version": "1.0.0",
 	"description": "Tiny, typed Zustand factory with persistence, migrations, and devtools baked in.",
 	"keywords": ["zustand", "store", "state", "react", "typescript", "persistence"],
 	"author": "Arshad Shah <hello@arshadshah.com>",

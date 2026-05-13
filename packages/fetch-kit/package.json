@@ -1,6 +1,6 @@
 {
 	"name": "@arshad-shah/fetch-kit",
-	"version": "0.1.0",
+	"version": "1.0.0",
 	"description": "Typed fetch client with retries, timeouts, schema validation, and React hooks.",
 	"keywords": ["fetch", "http", "client", "react", "hooks", "typescript", "zod"],
 	"author": "Arshad Shah <hello@arshadshah.com>",
