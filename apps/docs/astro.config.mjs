@@ -139,8 +139,6 @@ export default defineConfig({
 					label: "Operations",
 					items: [
 						{ label: "Bundle size", slug: "ops/bundle-size" },
-						{ label: "Security", slug: "ops/security" },
-						{ label: "Releases", slug: "ops/releases" },
 					],
 				},
 			],
