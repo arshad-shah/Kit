@@ -1,5 +1,12 @@
 # @arshad-shah/config-kit
 
+[![npm version](https://img.shields.io/npm/v/@arshad-shah/config-kit?color=cb3837&logo=npm)](https://www.npmjs.com/package/@arshad-shah/config-kit)
+[![npm downloads](https://img.shields.io/npm/dm/@arshad-shah/config-kit?color=cb3837&logo=npm)](https://www.npmjs.com/package/@arshad-shah/config-kit)
+[![Bundle size](https://img.shields.io/bundlephobia/minzip/@arshad-shah/config-kit?label=gzip)](https://bundlephobia.com/package/@arshad-shah/config-kit)
+[![Types](https://img.shields.io/npm/types/@arshad-shah/config-kit?color=3178c6&logo=typescript&logoColor=white)](https://www.npmjs.com/package/@arshad-shah/config-kit)
+[![License](https://img.shields.io/npm/l/@arshad-shah/config-kit)](../../LICENSE)
+[![CI](https://github.com/arshad-shah/kit/actions/workflows/ci.yml/badge.svg)](https://github.com/arshad-shah/kit/actions/workflows/ci.yml)
+
 Typed config loader: env vars, `.env` files, and remote sources merged in order and validated against your schema. Wrong env var? Build fails at boot.
 
 **1.4 KB gzipped.** Schema-agnostic — works with Zod, Valibot, ArkType, or anything with a `parse` method.

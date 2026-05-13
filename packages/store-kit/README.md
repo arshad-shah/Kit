@@ -1,5 +1,12 @@
 # @arshad-shah/store-kit
 
+[![npm version](https://img.shields.io/npm/v/@arshad-shah/store-kit?color=cb3837&logo=npm)](https://www.npmjs.com/package/@arshad-shah/store-kit)
+[![npm downloads](https://img.shields.io/npm/dm/@arshad-shah/store-kit?color=cb3837&logo=npm)](https://www.npmjs.com/package/@arshad-shah/store-kit)
+[![Bundle size](https://img.shields.io/bundlephobia/minzip/@arshad-shah/store-kit?label=gzip)](https://bundlephobia.com/package/@arshad-shah/store-kit)
+[![Types](https://img.shields.io/npm/types/@arshad-shah/store-kit?color=3178c6&logo=typescript&logoColor=white)](https://www.npmjs.com/package/@arshad-shah/store-kit)
+[![License](https://img.shields.io/npm/l/@arshad-shah/store-kit)](../../LICENSE)
+[![CI](https://github.com/arshad-shah/kit/actions/workflows/ci.yml/badge.svg)](https://github.com/arshad-shah/kit/actions/workflows/ci.yml)
+
 Tiny, typed Zustand factory with persistence, versioned migrations, devtools, and reset baked in.
 
 **1.4 KB gzipped.** No dependencies in the hot path — just `zustand` as a peer.

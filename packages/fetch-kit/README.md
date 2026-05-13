@@ -1,5 +1,12 @@
 # @arshad-shah/fetch-kit
 
+[![npm version](https://img.shields.io/npm/v/@arshad-shah/fetch-kit?color=cb3837&logo=npm)](https://www.npmjs.com/package/@arshad-shah/fetch-kit)
+[![npm downloads](https://img.shields.io/npm/dm/@arshad-shah/fetch-kit?color=cb3837&logo=npm)](https://www.npmjs.com/package/@arshad-shah/fetch-kit)
+[![Bundle size](https://img.shields.io/bundlephobia/minzip/@arshad-shah/fetch-kit?label=gzip)](https://bundlephobia.com/package/@arshad-shah/fetch-kit)
+[![Types](https://img.shields.io/npm/types/@arshad-shah/fetch-kit?color=3178c6&logo=typescript&logoColor=white)](https://www.npmjs.com/package/@arshad-shah/fetch-kit)
+[![License](https://img.shields.io/npm/l/@arshad-shah/fetch-kit)](../../LICENSE)
+[![CI](https://github.com/arshad-shah/kit/actions/workflows/ci.yml/badge.svg)](https://github.com/arshad-shah/kit/actions/workflows/ci.yml)
+
 Typed `fetch` client with retries, timeouts, schema validation, response caching, in-flight deduplication, GraphQL support, and React hooks. Native `fetch` under the hood — works in browsers, edge runtimes, Node 20+, Bun, and Deno.
 
 ```bash
