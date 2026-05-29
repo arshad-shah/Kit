@@ -67,6 +67,13 @@ function loadPersistedState<TState>(
 
 /**
  * Write state to storage as a versioned envelope.
+ *
+ * Returns the serialized payload that was written, or `null` if nothing was
+ * written (serialization threw, or the payload matched `previousSerialized`
+ * and the redundant write was skipped). Skipping unchanged writes keeps a
+ * store with both persisted and transient fields from churning storage on
+ * every transient update — each `setItem` is a full re-serialize and, for
+ * `localStorage`, a synchronous main-thread write.
  */
 function persistState<TState>(
 	storageKey: string,
@@ -75,19 +82,25 @@ function persistState<TState>(
 	version: number,
 	persist: PersistConfig<TState>,
 	reportError: ReportError,
-): void {
+	previousSerialized: string | null,
+): string | null {
 	try {
 		const partial = persist.partialize ? persist.partialize(state) : state;
 		const envelope: Envelope<TState> = { version, state: partial as Partial<TState> };
 		const serialize = persist.serialize ?? JSON.stringify;
-		const result = storage.setItem(storageKey, serialize(envelope));
+		const serialized = serialize(envelope);
+		// Nothing the persisted slice cares about changed - skip the write.
+		if (serialized === previousSerialized) return previousSerialized;
+		const result = storage.setItem(storageKey, serialized);
 		// Async storage returns a promise; we don't await here because
 		// store updates are synchronous. Rejections surface via reportError.
 		if (result instanceof Promise) {
 			result.catch((err) => reportError(err, "persist"));
 		}
+		return serialized;
 	} catch (err) {
 		reportError(err, "persist");
+		return null;
 	}
 }
 
@@ -196,14 +209,43 @@ export function createStore<TState extends object, TActions extends object = Rec
 			: create<TState & TActions>()(initializer)
 	) as KitStore<TState, TActions>;
 
+	// Tracks the last payload written to storage so unchanged states (e.g. a
+	// transient field changing while the persisted slice stays put) can skip
+	// the write entirely. Seeded with the hydrated/initial slice so the very
+	// first transient update doesn't write a payload identical to what's
+	// already persisted.
+	let lastSerialized: string | null = null;
+	if (persist && storage) {
+		try {
+			const state = useStore.getState() as TState;
+			const partial = persist.partialize ? persist.partialize(state) : state;
+			const serialize = persist.serialize ?? JSON.stringify;
+			lastSerialized = serialize({ version, state: partial as Partial<TState> });
+		} catch {
+			// If serialization fails here, leave the seed null - the first real
+			// write will surface the error through reportError as before.
+			lastSerialized = null;
+		}
+	}
+	const subscribePersist = (): (() => void) =>
+		useStore.subscribe((state) => {
+			lastSerialized = persistState(
+				storageKey,
+				storage as KitStorage,
+				state as TState,
+				version,
+				persist as PersistConfig<TState>,
+				reportError,
+				lastSerialized,
+			);
+		});
+
 	// Capture the unsubscribe so destroy() can detach the persistence listener.
 	// Without this, the closure (and the storage handle it captures) lives for
 	// the rest of the process - a real leak in tests and SSR-per-request flows.
 	let unsubscribePersist: (() => void) | null = null;
 	if (persist && storage) {
-		unsubscribePersist = useStore.subscribe((state) => {
-			persistState(storageKey, storage, state as TState, version, persist, reportError);
-		});
+		unsubscribePersist = subscribePersist();
 	}
 
 	useStore.reset = () => {
@@ -225,10 +267,11 @@ export function createStore<TState extends object, TActions extends object = Rec
 			} catch (err) {
 				reportError(err, "reset");
 			}
+			// Storage was just cleared, so forget the last written payload -
+			// otherwise the next write could be wrongly skipped as "unchanged".
+			lastSerialized = null;
 			// Re-attach for future state changes.
-			unsubscribePersist = useStore.subscribe((state) => {
-				persistState(storageKey, storage, state as TState, version, persist, reportError);
-			});
+			unsubscribePersist = subscribePersist();
 		}
 	};
 

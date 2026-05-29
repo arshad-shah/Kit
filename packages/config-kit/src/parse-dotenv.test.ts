@@ -14,6 +14,19 @@ describe("parseDotenv", () => {
 		expect(parseDotenv("# this is a comment\nFOO=bar\n#BAZ=ignored")).toEqual({ FOO: "bar" });
 	});
 
+	it("supports the `export ` prefix common in shell-sourced .env files", () => {
+		expect(parseDotenv("export FOO=bar\nexport BAZ=qux")).toEqual({ FOO: "bar", BAZ: "qux" });
+	});
+
+	it("treats `export` as a prefix, not part of the key", () => {
+		expect(parseDotenv('export TOKEN="a b c"')).toEqual({ TOKEN: "a b c" });
+	});
+
+	it("does not strip `export` when it is part of the key name", () => {
+		// `exportFOO` (no space) is a legitimate variable name, not the keyword.
+		expect(parseDotenv("exportFOO=bar")).toEqual({ exportFOO: "bar" });
+	});
+
 	it("handles inline comments after unquoted values", () => {
 		expect(parseDotenv("FOO=bar # trailing comment")).toEqual({ FOO: "bar" });
 	});

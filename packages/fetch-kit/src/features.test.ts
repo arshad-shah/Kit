@@ -316,6 +316,31 @@ describe("graphql", () => {
 		expect(fetchSpy).toHaveBeenCalledTimes(2);
 	});
 
+	it("does not cache query responses that contain errors", async () => {
+		// A GraphQL error comes back as HTTP 200 with an `errors` array. Caching
+		// it would poison the cache for the whole TTL: every later call within
+		// the window keeps throwing from the stale entry, and a server that has
+		// since recovered never gets re-queried.
+		let call = 0;
+		const fetchSpy = vi.fn(async () => {
+			call += 1;
+			return call === 1
+				? jsonResponse({ errors: [{ message: "transient" }] })
+				: jsonResponse({ data: { x: 1 } });
+		});
+		const api = createClient({
+			fetch: fetchSpy,
+			graphqlEndpoint: "/graphql",
+			cache: true,
+		});
+
+		await expect(api.graphql("query { x }")).rejects.toBeInstanceOf(GraphQLError);
+		// Second call must hit the network again rather than replaying the
+		// cached error envelope, and should now succeed.
+		await expect(api.graphql<{ x: number }>("query { x }")).resolves.toEqual({ x: 1 });
+		expect(fetchSpy).toHaveBeenCalledTimes(2);
+	});
+
 	it("dedupes concurrent identical queries", async () => {
 		const { fetchSpy, resolve } = deferredFetch({ data: { x: 1 } });
 		const api = createClient({ fetch: fetchSpy, graphqlEndpoint: "/graphql" });
