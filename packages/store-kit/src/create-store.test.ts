@@ -210,6 +210,37 @@ describe("createStore", () => {
 			const raw = localStorage.getItem("kit:store:custom-serde");
 			expect(raw?.startsWith("__")).toBe(true);
 		});
+
+		it("does not rewrite storage when the persisted slice is unchanged", () => {
+			const setItem = vi.fn();
+			const storage = {
+				getItem: () => null,
+				setItem,
+				removeItem: () => undefined,
+			};
+			const store = createStore<{ kept: number; transient: number }, { bump: () => void }>({
+				name: "skip-redundant-writes",
+				initial: { kept: 0, transient: 0 },
+				actions: (set) => ({
+					bump: () => set((s) => ({ transient: s.transient + 1 })),
+				}),
+				persist: {
+					storage,
+					version: 0,
+					// Only `kept` is persisted; bumping `transient` must not churn storage.
+					partialize: (s) => ({ kept: s.kept }),
+				},
+			});
+
+			setItem.mockClear();
+			store.getState().bump();
+			store.getState().bump();
+			expect(setItem).not.toHaveBeenCalled();
+
+			// A change to the persisted slice still writes.
+			store.setState({ kept: 1 });
+			expect(setItem).toHaveBeenCalledTimes(1);
+		});
 	});
 
 	describe("reset", () => {

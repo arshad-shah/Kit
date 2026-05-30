@@ -358,7 +358,17 @@ export function createClient(config: ClientConfig = {}): Client {
 		options: RequestOptions<T>,
 		isReadOp: boolean,
 		cacheKeyOverride?: string,
+		/**
+		 * Gate the cache write on the resolved value. Returning `false` runs the
+		 * request (and shares it via dedupe) but keeps it out of the cache - used
+		 * by GraphQL so an HTTP-200-with-`errors` envelope doesn't poison the
+		 * cache for the whole TTL.
+		 */
+		shouldCache?: (result: T) => boolean,
 	): Promise<T> {
+		// Per-request cache object (when one was supplied), resolved once.
+		const cacheOpt = typeof options.cache === "object" ? options.cache : undefined;
+
 		const useCache = (() => {
 			if (!cacheConfig) return false;
 			if (options.cache === false) return false;
@@ -376,7 +386,7 @@ export function createClient(config: ClientConfig = {}): Client {
 		const computeKey = (): string => {
 			// User-supplied key wins over auto-generated overrides so callers
 			// can always pin a request to a known cache slot.
-			if (typeof options.cache === "object" && options.cache?.key) return options.cache.key;
+			if (cacheOpt?.key) return cacheOpt.key;
 			if (cacheKeyOverride) return cacheKeyOverride;
 			const keyFn = cacheConfig?.keyFn ?? defaultCacheKey;
 			return keyFn(method, url, body);
@@ -384,13 +394,9 @@ export function createClient(config: ClientConfig = {}): Client {
 
 		const key = useCache || useDedupe ? computeKey() : "";
 
-		if (useCache && cacheConfig) {
-			const opt = typeof options.cache === "object" ? options.cache : undefined;
-			const bypass = opt?.bypass === true;
-			if (!bypass) {
-				const entry = await cacheConfig.store.get(key);
-				if (entry) return entry.data as T;
-			}
+		if (useCache && cacheConfig && cacheOpt?.bypass !== true) {
+			const entry = await cacheConfig.store.get(key);
+			if (entry) return entry.data as T;
 		}
 
 		// Build the "fetch + cache.set" pipeline. When dedupe is on this runs
@@ -399,9 +405,8 @@ export function createClient(config: ClientConfig = {}): Client {
 		// signal is wired in directly inside executeOnce.
 		const runner = async (sharedController?: AbortController): Promise<T> => {
 			const result = await executeWithRetry(method, url, body, options, sharedController);
-			if (useCache && cacheConfig) {
-				const opt = typeof options.cache === "object" ? options.cache : undefined;
-				const ttl = opt?.ttl ?? cacheConfig.ttl;
+			if (useCache && cacheConfig && (!shouldCache || shouldCache(result))) {
+				const ttl = cacheOpt?.ttl ?? cacheConfig.ttl;
 				await cacheConfig.store.set(key, {
 					data: result,
 					expiresAt: Date.now() + ttl,
@@ -469,6 +474,10 @@ export function createClient(config: ClientConfig = {}): Client {
 				rest as RequestOptions<GraphQLResponse<TData>>,
 				isReadOp,
 				cacheKey,
+				// Never cache an envelope carrying GraphQL errors - it would be
+				// replayed (and re-thrown) on every hit until the TTL expires,
+				// even after the server recovers.
+				(envelope) => !envelope?.errors?.length,
 			);
 
 			if (envelope?.errors && envelope.errors.length > 0) {

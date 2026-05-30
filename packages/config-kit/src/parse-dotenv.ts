@@ -3,6 +3,7 @@
  *
  * Supports the common subset of dotenv syntax:
  * - `KEY=value` and `KEY="value"` and `KEY='value'`
+ * - An optional `export ` prefix (so files that double as shell scripts work)
  * - Comments starting with `#` (line-leading or after a value)
  * - Multi-line values via `\n` escapes inside double-quoted strings
  * - Blank lines
@@ -16,8 +17,14 @@ export function parseDotenv(content: string): Record<string, string> {
 	const out: Record<string, string> = {};
 
 	for (const rawLine of content.split(/\r?\n/)) {
-		const line = rawLine.trim();
+		let line = rawLine.trim();
 		if (line.length === 0 || line.startsWith("#")) continue;
+
+		// Drop a leading `export ` keyword. Files copied from shell profiles
+		// frequently carry it; without this the whole line would be discarded
+		// because `export FOO` isn't a valid key. Requires trailing whitespace
+		// so a genuine `exportFOO` variable name is left intact.
+		line = line.replace(/^export\s+/, "");
 
 		const eq = line.indexOf("=");
 		if (eq === -1) continue;
