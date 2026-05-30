@@ -1,5 +1,11 @@
 # @arshad-shah/store-kit
 
+## 1.0.2
+
+### Patch Changes
+
+- [#38](https://github.com/arshad-shah/Kit/pull/38) [`acde61c`](https://github.com/arshad-shah/Kit/commit/acde61cfb072adc5d362698d7e1285162d8b3e81) Thanks [@arshad-shah](https://github.com/arshad-shah)! - Performance: persisted stores no longer rewrite storage when the persisted slice is unchanged. A store with both persisted and transient fields previously re-serialized and wrote to storage on _every_ update — including transient changes the persisted slice didn't care about. Each write is now skipped when the serialized payload matches the last one, eliminating needless serialization and synchronous `localStorage` writes for high-frequency stores. The baseline is reseeded after `reset()` so a post-reset write is never wrongly skipped.
+
 ## 1.0.1
 
 ### Patch Changes

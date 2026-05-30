@@ -1,5 +1,11 @@
 # @arshad-shah/config-kit
 
+## 1.0.2
+
+### Patch Changes
+
+- [#38](https://github.com/arshad-shah/Kit/pull/38) [`acde61c`](https://github.com/arshad-shah/Kit/commit/acde61cfb072adc5d362698d7e1285162d8b3e81) Thanks [@arshad-shah](https://github.com/arshad-shah)! - Fix: `parseDotenv` now accepts the optional `export ` prefix (e.g. `export FOO=bar`). Files that double as shell scripts commonly carry it; previously those lines were silently dropped because `export FOO` isn't a valid key. A genuine variable named `exportFOO` (no whitespace) is left untouched.
+
 ## 1.0.1
 
 ### Patch Changes

@@ -1,5 +1,11 @@
 # @arshad-shah/fetch-kit
 
+## 1.0.2
+
+### Patch Changes
+
+- [#38](https://github.com/arshad-shah/Kit/pull/38) [`acde61c`](https://github.com/arshad-shah/Kit/commit/acde61cfb072adc5d362698d7e1285162d8b3e81) Thanks [@arshad-shah](https://github.com/arshad-shah)! - Fix: GraphQL responses containing `errors` are no longer written to the response cache. Because GraphQL servers return HTTP 200 even on failure, an errored envelope was previously cached and replayed (re-throwing `GraphQLError`) on every hit until the TTL expired — poisoning the cache and blocking a recovered server from being re-queried. Errored envelopes now bypass the cache so the next call hits the network again. Also dedupes the per-request `cache` option resolution internally (no behavior change).
+
 ## 1.0.1
 
 ### Patch Changes
