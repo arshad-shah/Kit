@@ -3,7 +3,12 @@ title: Sources
 description: Built-in sources and how to write your own.
 ---
 
-A source is anything implementing `{ name, load }`. `load()` returns a flat `Record<string, string | undefined>`, sync or async. Sources run in parallel; merging happens in array order, with later sources overriding earlier ones.
+There are two kinds of source:
+
+- **Flat** sources implement `{ name, load }`, where `load()` returns a flat `Record<string, string | undefined>`. The schema coerces strings via `z.coerce.*`. This is the right shape for env vars and `.env` files.
+- **Structured** sources add `structured: true` and `load()` returns an arbitrary nested object (sub-objects, arrays, even functions). These power [module-based config](/config-kit/module-config) and skip string-coercion.
+
+Sources run in parallel; merging happens in array order, with later sources overriding earlier ones. Flat sources merge key-by-key; structured sources deep-merge (plain objects recurse, arrays and primitives replace).
 
 ## Built-in sources
 
@@ -59,6 +64,32 @@ remoteSource({
 
 Network failures resolve to `{}`. If a remote-only key is required, the schema's validation will catch the missing value.
 
+### `objectSource(values)`
+
+Structured defaults — the nested counterpart to `staticSource`. Participates in the deep merge, so a later config file only overrides the keys it sets:
+
+```ts
+sources: [
+  objectSource({ dev: { port: 3000 }, build: { minify: true } }),
+  configFileSource({ name: "app" }),
+]
+```
+
+### `configFileSource({ name, cwd, extensions, searchParents, load })`
+
+Discovers, imports, and returns the default export of a `name.config.<ext>` file. See [Module-based config](/config-kit/module-config) for the full walkthrough.
+
+```ts
+configFileSource({
+  name: "app",                                  // → app.config.*
+  extensions: ["ts", "js", "mjs", "cjs", "json"], // first match wins
+  load: async (file) =>                          // optional: compile TS/ESM
+    (await import("jiti")).createJiti(import.meta.url)(file),
+})
+```
+
+Resolution walks up from `cwd` (disable with `searchParents: false`). A missing file resolves to `{}` so defaults apply.
+
 ## Source ordering
 
 Order matters. Common patterns:
@@ -98,6 +129,18 @@ const awsSecretsSource = (region: string): ConfigSource => ({
 await loadConfig({
   schema,
   sources: [processEnvSource(), awsSecretsSource("eu-west-1")],
+});
+```
+
+For a source that returns a nested object instead of flat strings, add `structured: true` and implement `StructuredSource`:
+
+```ts
+import type { StructuredSource } from "@arshad-shah/config-kit";
+
+const presetSource = (preset: AppConfig): StructuredSource => ({
+  name: "preset",
+  structured: true,
+  load: () => preset, // any nested object; deep-merged, never coerced
 });
 ```
 

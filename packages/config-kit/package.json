@@ -73,16 +73,16 @@
 		{
 			"name": "ESM",
 			"path": "dist/index.mjs",
-			"limit": "2 KB",
+			"limit": "2.5 KB",
 			"gzip": true,
-			"ignore": ["zod", "@arshad-shah/log-kit"]
+			"ignore": ["zod", "@arshad-shah/log-kit", "path", "url", "fs/promises"]
 		},
 		{
 			"name": "CJS",
 			"path": "dist/index.cjs",
-			"limit": "2.5 KB",
+			"limit": "3 KB",
 			"gzip": true,
-			"ignore": ["zod", "@arshad-shah/log-kit"]
+			"ignore": ["zod", "@arshad-shah/log-kit", "path", "url", "fs/promises"]
 		}
 	]
 }

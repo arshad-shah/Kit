@@ -128,6 +128,7 @@ export default defineConfig({
 					items: [
 						{ label: "Overview", slug: "config-kit/overview" },
 						{ label: "Sources", slug: "config-kit/sources" },
+						{ label: "Module-based config", slug: "config-kit/module-config" },
 						{ label: "Schema patterns", slug: "config-kit/schema-patterns" },
 						{
 							label: "API reference",
