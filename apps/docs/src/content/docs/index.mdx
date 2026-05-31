@@ -26,10 +26,10 @@ import KitCard from "../../components/KitCard.astro";
 		Typed HTTP client + React hooks. Retries, timeouts, response caching, dedupe, GraphQL, schema validation, abort-on-unmount. **3 KB core, 0.75 KB hooks.**
 	</KitCard>
 	<KitCard title="log-kit" icon="document" href="/log-kit/overview/">
-		Structured logger with pluggable transports (console, HTTP, file, Datadog) and perf markers. **1.1 KB core.**
+		Structured logger with pluggable transports (console, HTTP, file, Datadog), perf markers, named scopes, and runtime transports. **~1.8 KB core.**
 	</KitCard>
 	<KitCard title="config-kit" icon="setting" href="/config-kit/overview/">
-		Typed env loading from .env, process.env, and remote sources. Schema-validated, secret-safe errors. **1.4 KB.**
+		Typed config from .env, process.env, remote sources, and module-based config files (`app.config.ts`). Schema-validated, secret-safe errors. **~2 KB.**
 	</KitCard>
 	<KitCard title="Tiny by design" icon="rocket">
 		Bundle budgets enforced in CI. No accidental growth. No deps in the hot path - just `zustand`, `zod` (optional), and your `fetch`.
