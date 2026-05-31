@@ -9,7 +9,7 @@
 
 Structured logger with pluggable transports and performance markers. Zero dependencies.
 
-**1.4 KB core, transports tree-shaken on separate subpath imports.**
+**~1.8 KB core, transports tree-shaken on separate subpath imports.**
 
 ```bash
 pnpm add @arshad-shah/log-kit
@@ -76,12 +76,51 @@ Each transport is a separate subpath import — tree-shaken away if unused:
 The HTTP, file, and Datadog transports each expose an `onError` hook for
 diagnostics. Or write your own — it's a `{ name, write, flush? }` object.
 
+## Wrapping log-kit in a host logger
+
+log-kit is built to sit *under* a host's own logger (a CLI, a build tool). The
+escape hatches that make wrapping clean:
+
+```ts
+const root = createLogger({ scope: "app", timestamp: "epoch" });
+
+// Named child loggers nest a string scope a transport can render as a prefix:
+const manifest = root.child("manifest");      // scope: "app:manifest"
+
+// log() gives full control of the record — meta (host passthrough), kind
+// (presentation badge), and printf args — without abusing `context`:
+manifest.log({
+  level: "info",
+  message: "built %s in %dms",
+  args: ["index.js", 12],
+  kind: "success",                 // your transport maps this to a green ✔
+  meta: { entry: hostEntry },      // log-kit never reads this; transports can
+});
+
+// Timing hands the measured ms back so callers can reuse it:
+const ms = root.mark("bundle")();
+
+// Transports can be managed at runtime instead of rebuilt:
+root.addTransport(myTransport);
+root.removeTransport("console");
+
+// Mute entirely instead of leaning on `trace`:
+createLogger({ level: "silent" });
+```
+
+See [Host loggers](https://kit.arshadshah.com/log-kit/host-loggers) for the full
+wrapping guide.
+
 ## What you get
 
-- **Six levels** — `trace` < `debug` < `info` < `warn` < `error` < `fatal`
-- **Structured records** — plain JSON, transport-friendly
-- **Child loggers** — `log.child({ requestId })` for scoped context (inherits `onTransportError`)
-- **Perf markers** — one-line operation timing, skipped when the level is disabled
+- **Six levels** — `trace` < `debug` < `info` < `warn` < `error` < `fatal`, plus `"silent"` to mute
+- **Structured records** — plain JSON, transport-friendly, with first-class `scope`, `kind`, `meta`, and `args`
+- **`log()` escape hatch** — build a record with full control for host wrappers
+- **Child loggers** — `log.child({ requestId })` for context, `log.child("manifest")` for nested string scopes (both inherit `onTransportError`)
+- **Configurable timestamps** — ISO (default), epoch ms, or your own `(date) => …`
+- **Perf markers** — one-line operation timing that returns the duration
+- **Runtime transports** — `addTransport` / `removeTransport` without rebuilding
+- **Stream routing** — `consoleTransport({ stream })` for stdout/stderr control
 - **Failure isolation with observability** — a transport that throws never breaks the others, and `onTransportError` lets you see it
 
 ## Documentation

@@ -5,6 +5,14 @@
 export type LogLevel = "trace" | "debug" | "info" | "warn" | "error" | "fatal";
 
 /**
+ * A level accepted by {@link LoggerConfig.level}. In addition to the six
+ * record levels, `"silent"` disables output entirely — nothing is emitted and
+ * `isLevelEnabled` returns `false` for every level. Use it to fully mute a
+ * logger (e.g. a host that does its own gating) instead of leaning on `trace`.
+ */
+export type LevelSetting = LogLevel | "silent";
+
+/**
  * Canonical numeric ordering for level comparisons.
  *
  * Used both for the logger's own threshold check and by transports (e.g. the
@@ -42,16 +50,63 @@ export type SerializedError = {
  * stable - transports can safely persist or transmit them.
  */
 export type LogRecord = {
-	/** ISO 8601 timestamp at record creation. */
-	timestamp: string;
+	/**
+	 * Timestamp at record creation. An ISO 8601 string by default; a number
+	 * (epoch ms) or other shape when {@link LoggerConfig.timestamp} is set.
+	 */
+	timestamp: string | number;
 	/** Severity level. */
 	level: LogLevel;
-	/** Human-readable message. */
+	/** Human-readable message (or a printf-style template when {@link args} is set). */
 	message: string;
 	/** Structured context attached at the log call or via `child()`. */
 	context: Record<string, unknown>;
 	/** Optional error, if `.error()` was called with one. */
 	error?: SerializedError;
+	/**
+	 * Hierarchical scope, e.g. `"app:manifest"`, set via `child(name)`. A
+	 * presentation transport can render it as a prefix.
+	 */
+	scope?: string;
+	/**
+	 * Presentation tag a transport can map to a badge or colour without
+	 * abusing `level` (e.g. `"success"` → green ✔). log-kit never interprets it.
+	 */
+	kind?: string;
+	/**
+	 * Host-owned passthrough payload. log-kit never reads or mutates this — it
+	 * is a first-class escape hatch for wrappers that need to carry their own
+	 * entry shape (presentation data, original call, etc.) to a transport,
+	 * keeping `context` for the user's structured data.
+	 */
+	meta?: Record<string, unknown>;
+	/**
+	 * Extra printf-style arguments for {@link message}. The console transport
+	 * substitutes `%s/%d/%i/%f/%j/%o/%O/%%`; JSON transports keep them
+	 * alongside the template.
+	 */
+	args?: unknown[];
+};
+
+/**
+ * Full-control input for {@link Logger.log}. Lets a host build a record with
+ * any of the first-class fields (`meta`, `kind`, `args`) that the convenience
+ * methods (`info`, `warn`, …) don't expose, without smuggling them through
+ * `context`.
+ */
+export type LogInput = {
+	/** Severity level. */
+	level: LogLevel;
+	/** Message string, or an `Error` to capture name/message/stack/cause/code. */
+	message: string | Error;
+	/** Structured context, merged over the logger's base context. */
+	context?: Record<string, unknown>;
+	/** Host passthrough payload (see {@link LogRecord.meta}). */
+	meta?: Record<string, unknown>;
+	/** Presentation tag (see {@link LogRecord.kind}). */
+	kind?: string;
+	/** printf-style arguments for `message` (see {@link LogRecord.args}). */
+	args?: unknown[];
 };
 
 /**
@@ -89,15 +144,34 @@ export type TransportErrorInfo = {
 };
 
 /**
+ * Controls how a record's `timestamp` is produced.
+ *
+ * - `"iso"` (default): `date.toISOString()` — an ISO 8601 string.
+ * - `"epoch"`: `date.getTime()` — epoch milliseconds as a number.
+ * - a function: receives the raw `Date` and returns whatever wire shape your
+ *   host's contract requires.
+ */
+export type TimestampFormat = "iso" | "epoch" | ((date: Date) => string | number);
+
+/**
  * Configuration for {@link createLogger}.
  */
 export type LoggerConfig = {
-	/** Minimum level to emit. Records below this are dropped. Defaults to `"info"`. */
-	level?: LogLevel;
+	/**
+	 * Minimum level to emit. Records below this are dropped. `"silent"` mutes
+	 * the logger entirely. Defaults to `"info"`.
+	 */
+	level?: LevelSetting;
 	/** Static context merged into every record. */
 	context?: Record<string, unknown>;
+	/** Initial hierarchical scope (see `child(name)`). */
+	scope?: string;
+	/** Separator used when nesting scopes via `child(name)`. Defaults to `":"`. */
+	scopeSeparator?: string;
 	/** Transports to fan out to. Defaults to `[consoleTransport()]`. */
 	transports?: Transport[];
+	/** How to format the record timestamp. Defaults to `"iso"`. */
+	timestamp?: TimestampFormat;
 	/**
 	 * Optional clock for deterministic tests. Defaults to `() => new Date()`.
 	 */
@@ -131,27 +205,67 @@ export type Logger = {
 	fatal: (messageOrError: string | Error, context?: Record<string, unknown>) => void;
 
 	/**
-	 * Create a child logger that prepends the given context to every record.
-	 * Useful for request-scoped or component-scoped loggers.
+	 * Low-level structured log with full control over the record — including
+	 * `meta`, `kind`, and `args`, which the convenience methods don't expose.
+	 * The escape hatch for wrappers that build their own entries.
+	 *
+	 * @example
+	 * ```ts
+	 * log.log({
+	 *   level: "info",
+	 *   message: "built %s in %dms",
+	 *   args: ["index.js", 12],
+	 *   kind: "success",
+	 *   meta: { entry: hostEntry },
+	 * });
+	 * ```
 	 */
-	child: (context: Record<string, unknown>) => Logger;
+	log: (input: LogInput) => void;
 
 	/**
-	 * Start a performance marker. Returns a function that, when called,
-	 * emits a record with `durationMs` measured from the start.
+	 * Create a child logger.
+	 *
+	 * - `child(context)` prepends a context object to every record.
+	 * - `child(name)` / `child(name, context)` nests a string **scope**
+	 *   (`parent:child`) that transports can render as a prefix — ideal for
+	 *   hierarchical CLI loggers (`app`, `app:manifest`).
+	 *
+	 * Children share the parent's transports (including any added later via
+	 * `addTransport`) and inherit its level, timestamp format, and
+	 * `onTransportError`.
+	 */
+	child: {
+		(context: Record<string, unknown>): Logger;
+		(name: string, context?: Record<string, unknown>): Logger;
+	};
+
+	/**
+	 * Start a performance marker. Returns a function that, when called, emits a
+	 * record with `durationMs` measured from the start **and returns that
+	 * duration** so callers can reuse the number.
+	 *
+	 * The duration is returned even when the level is disabled (no record is
+	 * emitted in that case).
 	 *
 	 * @example
 	 * ```ts
 	 * const end = logger.mark("query.users");
 	 * const users = await db.users.find();
-	 * end({ count: users.length });
-	 * // -> { level: "info", message: "query.users", context: { durationMs: 12, count: 50 } }
+	 * const ms = end({ count: users.length }); // logs, and ms is reusable
 	 * ```
 	 */
 	mark: (
 		label: string,
 		options?: { level?: LogLevel },
-	) => (extraContext?: Record<string, unknown>) => void;
+	) => (extraContext?: Record<string, unknown>) => number;
+
+	/** Add a transport at runtime. Affects this logger and its children. */
+	addTransport: (transport: Transport) => void;
+	/**
+	 * Remove transports at runtime. With a `name`, removes every transport with
+	 * that name; without one, removes all. Returns the number removed.
+	 */
+	removeTransport: (name?: string) => number;
 
 	/**
 	 * Flush all transports. Returns a per-transport status so callers can

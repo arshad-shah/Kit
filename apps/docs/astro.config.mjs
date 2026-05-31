@@ -116,6 +116,7 @@ export default defineConfig({
 					items: [
 						{ label: "Overview", slug: "log-kit/overview" },
 						{ label: "Transports", slug: "log-kit/transports" },
+						{ label: "Host loggers", slug: "log-kit/host-loggers" },
 						{ label: "Performance markers", slug: "log-kit/perf-markers" },
 						{
 							label: "API reference",
