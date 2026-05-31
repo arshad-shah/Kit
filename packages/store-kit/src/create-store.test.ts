@@ -265,6 +265,46 @@ describe("createStore", () => {
 			useStore.reset();
 			expect(localStorage.getItem("kit:store:reset-persist")).toBeNull();
 		});
+
+		it("preserves action methods after reset", () => {
+			const useStore = createStore({
+				name: "reset-actions",
+				initial: { count: 0 },
+				actions: (set) => ({
+					increment: () => set((s) => ({ count: s.count + 1 })),
+				}),
+			});
+
+			useStore.getState().increment();
+			expect(useStore.getState().count).toBe(1);
+
+			useStore.reset();
+
+			// State is back to initial...
+			expect(useStore.getState().count).toBe(0);
+			// ...but the action must still be callable (replace:true used to wipe it).
+			expect(typeof useStore.getState().increment).toBe("function");
+			useStore.getState().increment();
+			expect(useStore.getState().count).toBe(1);
+		});
+
+		it("preserves actions after resetAllStores", () => {
+			const useStore = createStore({
+				name: "reset-all-actions",
+				initial: { count: 0 },
+				actions: (set) => ({
+					bump: () => set((s) => ({ count: s.count + 10 })),
+				}),
+			});
+			useStore.getState().bump();
+
+			resetAllStores();
+
+			expect(useStore.getState().count).toBe(0);
+			expect(typeof useStore.getState().bump).toBe("function");
+			useStore.getState().bump();
+			expect(useStore.getState().count).toBe(10);
+		});
 	});
 
 	describe("resetAllStores", () => {

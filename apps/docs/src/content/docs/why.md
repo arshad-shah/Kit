@@ -15,7 +15,7 @@ Zustand is the smallest, most flexible store primitive that doesn't force a para
 
 ## Why a custom fetch wrapper, not Axios or ky
 
-- **Size.** Axios is ~14 KB gzipped. ky is ~3 KB. fetch-kit is 2.5 KB *with* retry logic and typed errors.
+- **Size.** Axios is ~14 KB gzipped. ky is ~3 KB. fetch-kit is ~3 KB *with* retries, response caching, in-flight dedupe, GraphQL, and typed errors.
 - **Native fetch.** Works in browsers, edge runtimes, Node 20+, Bun, Deno - everywhere modern JS runs.
 - **No request/response transforms by default.** Predictable behaviour beats clever defaults.
 

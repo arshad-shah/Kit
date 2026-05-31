@@ -39,6 +39,21 @@ describe("createClient", () => {
 			expect((init.headers as Record<string, string>)["Content-Type"]).toBe("application/json");
 		});
 
+		it("lets a client-level default Content-Type win over the inferred JSON type", async () => {
+			// A consumer configured a default Content-Type. Encoding a JSON body
+			// must not silently override that explicit choice.
+			const fetchSpy = vi.fn(async () => jsonResponse({ ok: true }));
+			const api = createClient({
+				fetch: fetchSpy,
+				headers: { "Content-Type": "application/merge-patch+json" },
+			});
+			await api.patch("/x", { a: 1 });
+			const init = fetchSpy.mock.calls[0]?.[1] as RequestInit;
+			expect((init.headers as Record<string, string>)["Content-Type"]).toBe(
+				"application/merge-patch+json",
+			);
+		});
+
 		it("performs PUT, PATCH, DELETE", async () => {
 			const fetchSpy = vi.fn(async () => jsonResponse({ ok: true }));
 			const api = createClient({ fetch: fetchSpy });
@@ -160,6 +175,31 @@ describe("createClient", () => {
 				expect(httpErr.body).toEqual({ message: "denied" });
 				expect(httpErr.isClientError).toBe(true);
 				expect(httpErr.isServerError).toBe(false);
+			}
+		});
+
+		it("throws HttpError (not a JSON SyntaxError) when an error body is malformed JSON", async () => {
+			// Server returns an error status with a JSON content-type but a body
+			// that isn't valid JSON (e.g. an HTML error page from a proxy). The
+			// typed HttpError must survive - a raw SyntaxError would hide the status.
+			const fetchSpy = vi.fn(
+				async () =>
+					new Response("<html>502 Bad Gateway</html>", {
+						status: 502,
+						statusText: "Bad Gateway",
+						headers: { "content-type": "application/json" },
+					}),
+			);
+			const api = createClient({ fetch: fetchSpy });
+			try {
+				await api.get("/x");
+				expect.fail("should have thrown");
+			} catch (err) {
+				expect(err).toBeInstanceOf(HttpError);
+				const httpErr = err as HttpError;
+				expect(httpErr.status).toBe(502);
+				// The unparseable body is surfaced as raw text rather than dropped.
+				expect(httpErr.body).toBe("<html>502 Bad Gateway</html>");
 			}
 		});
 

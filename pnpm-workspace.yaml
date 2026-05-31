@@ -5,3 +5,13 @@ allowBuilds:
   '@biomejs/biome': true
   esbuild: true
   sharp: true
+# Transitive-dependency overrides pinning patched versions of advisories
+# surfaced by `pnpm audit`. pnpm reads overrides from here (the package.json
+# `pnpm.overrides` field is not applied in this workspace).
+overrides:
+  ajv: ^8.18.0
+  yaml: ^2.8.3
+  tmp: ^0.2.6
+  devalue: ^5.8.1
+  ws: ^8.20.1
+  qs: ^6.15.2

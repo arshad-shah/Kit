@@ -91,7 +91,7 @@
 		{
 			"name": "Core (ESM)",
 			"path": "dist/index.mjs",
-			"limit": "3 KB",
+			"limit": "3.1 KB",
 			"gzip": true,
 			"ignore": ["react", "zod"]
 		},

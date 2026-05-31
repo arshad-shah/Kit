@@ -13,14 +13,15 @@ FetchKitError                       // base, never thrown directly
 ├── TimeoutError                    // exceeded configured timeout
 ├── AbortError                      // external signal aborted the request
 ├── HttpError                       // non-2xx status code
-└── ValidationError                 // schema validation failed
+├── ValidationError                 // schema validation failed
+└── GraphQLError                    // GraphQL response carried an errors array
 ```
 
 ## When each is thrown
 
 **`NetworkError`** - the browser/runtime couldn't reach the server. The original error is on `cause`. Retried by default.
 
-**`TimeoutError`** - the request exceeded its timeout. Has `timeoutMs` for context. Retried by default.
+**`TimeoutError`** - the request exceeded its timeout. Has `timeoutMs` for context. Not retried by default - a timeout aborts the in-flight request; opt in with a custom `retryOn` if you want timeouts retried.
 
 **`AbortError`** - an external `AbortSignal` (component unmount, manual cancel) aborted the request. Never retried.
 
@@ -38,6 +39,15 @@ error.isServerError // 5xx
 5xx, 408, and 429 are retried by default; other 4xx are not.
 
 **`ValidationError`** - the response body failed schema validation. The validator's issues are on `issues`. Never retried (the server already sent the bad data; retrying won't fix it).
+
+**`GraphQLError`** - a `client.graphql()` (or `useGraphQL`) call got an HTTP 2xx response whose body carried a non-empty `errors` array. Exposes:
+
+```ts
+error.errors  // the GraphQL spec error entries: { message, locations?, path?, extensions? }
+error.data    // any partial data the server returned alongside the errors
+```
+
+Never retried by default (the transport succeeded; the error is in the payload).
 
 ## A practical handler
 
