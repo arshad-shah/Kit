@@ -23,10 +23,13 @@ log.error(new Error("DB connection failed"));
 
 ## What you get
 
-- **Six levels**: `trace` < `debug` < `info` < `warn` < `error` < `fatal`
-- **Structured records** - every log is `{ timestamp, level, message, context, error? }`. Plain JSON, transport-friendly
-- **Child loggers** via `log.child({ requestId })` for request-scoped context
-- **Perf markers** - `const end = log.mark("op"); await work(); end({ count })` emits a record with `durationMs` automatically
+- **Six levels**: `trace` < `debug` < `info` < `warn` < `error` < `fatal`, plus `"silent"` to mute a logger entirely
+- **Structured records** - every log is `{ timestamp, level, message, context, error? }` with optional first-class `scope`, `kind`, `meta`, and `args`. Plain JSON, transport-friendly
+- **Child loggers** via `log.child({ requestId })` for context, or `log.child("manifest")` for nested string [scopes](/log-kit/host-loggers)
+- **`log()` escape hatch** - build a record with full control (`meta`, `kind`, `args`) when wrapping log-kit in a [host logger](/log-kit/host-loggers)
+- **Configurable timestamps** - ISO string (default), epoch ms, or a custom `(date) => string | number`
+- **Perf markers** - `const ms = log.mark("op")()` emits a record with `durationMs` *and* returns it
+- **Runtime transports** - `addTransport` / `removeTransport` without rebuilding the logger
 - **Fan-out transports** - configure as many as you want; each gets every record above the threshold
 - **Failure isolation** - a transport that throws or rejects never blocks others or surfaces errors to the caller
 

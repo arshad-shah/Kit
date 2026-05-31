@@ -1,11 +1,14 @@
 import { consoleTransport } from "./transports/console.js";
 import {
 	LEVEL_ORDER,
+	type LevelSetting,
+	type LogInput,
 	type LogLevel,
 	type LogRecord,
 	type Logger,
 	type LoggerConfig,
 	type SerializedError,
+	type TimestampFormat,
 	type Transport,
 	type TransportStatus,
 } from "./types.js";
@@ -20,6 +23,16 @@ const monotonicNow = (): number => {
 	}
 	return Date.now();
 };
+
+/**
+ * Resolve a {@link TimestampFormat} to a function that turns a `Date` into the
+ * value placed in `record.timestamp`.
+ */
+function resolveTimestamp(format: TimestampFormat): (date: Date) => string | number {
+	if (typeof format === "function") return format;
+	if (format === "epoch") return (d) => d.getTime();
+	return (d) => d.toISOString();
+}
 
 /**
  * Serialize an Error into a plain object suitable for JSON transport.
@@ -44,6 +57,29 @@ function serializeError(err: Error, depth = 0): SerializedError {
 		out.cause = serializeError(err.cause, depth + 1);
 	}
 	return out;
+}
+
+/**
+ * Fully-resolved logger state, shared (where appropriate) between a logger and
+ * its children. `transports` is a single mutable array so `addTransport` /
+ * `removeTransport` on any logger in the family are seen by the others.
+ */
+type LoggerState = {
+	threshold: number;
+	baseContext: Record<string, unknown>;
+	scope: string | undefined;
+	scopeSeparator: string;
+	transports: Transport[];
+	formatTimestamp: (date: Date) => string | number;
+	now: () => Date;
+	onTransportError: LoggerConfig["onTransportError"];
+};
+
+/**
+ * `"silent"` mutes everything; map it to a threshold no record level reaches.
+ */
+function thresholdFor(level: LevelSetting): number {
+	return level === "silent" ? Number.POSITIVE_INFINITY : LEVEL_ORDER[level];
 }
 
 /**
@@ -80,30 +116,60 @@ function serializeError(err: Error, depth = 0): SerializedError {
  * });
  * ```
  *
+ * @example Scoped child loggers
+ * ```ts
+ * const root = createLogger({ scope: "app" });
+ * const manifest = root.child("manifest"); // scope: "app:manifest"
+ * manifest.info("written");
+ * ```
+ *
  * @example Performance markers
  * ```ts
  * const end = log.mark("db.query");
  * const rows = await db.query(sql);
- * end({ rowCount: rows.length });
- * ```
- *
- * @example Drain on shutdown
- * ```ts
- * const results = await log.flush();
- * const failed = results.filter((r) => !r.ok);
- * if (failed.length > 0) process.exitCode = 1;
+ * const ms = end({ rowCount: rows.length }); // logs and returns the duration
  * ```
  */
 export function createLogger(config: LoggerConfig = {}): Logger {
 	const {
 		level = "info",
 		context: baseContext = {},
+		scope,
+		scopeSeparator = ":",
 		transports = [consoleTransport()],
+		timestamp = "iso",
 		now = () => new Date(),
 		onTransportError,
 	} = config;
 
-	const threshold = LEVEL_ORDER[level];
+	return buildLogger({
+		threshold: thresholdFor(level),
+		baseContext,
+		scope,
+		scopeSeparator,
+		// Copy so runtime add/remove never mutates the caller's array.
+		transports: [...transports],
+		formatTimestamp: resolveTimestamp(timestamp),
+		now,
+		onTransportError,
+	});
+}
+
+/**
+ * Build the logger closures over an already-resolved {@link LoggerState}.
+ * `child` reuses this with derived state, sharing the same `transports` array.
+ */
+function buildLogger(state: LoggerState): Logger {
+	const {
+		threshold,
+		baseContext,
+		scope,
+		scopeSeparator,
+		transports,
+		formatTimestamp,
+		now,
+		onTransportError,
+	} = state;
 
 	const isLevelEnabled = (l: LogLevel): boolean => LEVEL_ORDER[l] >= threshold;
 
@@ -131,10 +197,15 @@ export function createLogger(config: LoggerConfig = {}): Logger {
 		}
 	};
 
-	const log = (
+	const emit = (
 		recordLevel: LogLevel,
 		messageOrError: string | Error,
-		callContext?: Record<string, unknown>,
+		extras?: {
+			context?: Record<string, unknown> | undefined;
+			meta?: Record<string, unknown> | undefined;
+			kind?: string | undefined;
+			args?: unknown[] | undefined;
+		},
 	): void => {
 		if (!isLevelEnabled(recordLevel)) return;
 
@@ -142,40 +213,51 @@ export function createLogger(config: LoggerConfig = {}): Logger {
 		const message = isError ? messageOrError.message : messageOrError;
 
 		const record: LogRecord = {
-			timestamp: now().toISOString(),
+			timestamp: formatTimestamp(now()),
 			level: recordLevel,
 			message,
-			context: { ...baseContext, ...callContext },
+			context: { ...baseContext, ...extras?.context },
 		};
-		if (isError) {
-			record.error = serializeError(messageOrError);
-		}
+		if (isError) record.error = serializeError(messageOrError);
+		// Only attach optional fields when present so records stay minimal.
+		if (scope) record.scope = scope;
+		if (extras?.kind !== undefined) record.kind = extras.kind;
+		if (extras?.meta !== undefined) record.meta = extras.meta;
+		if (extras?.args && extras.args.length > 0) record.args = extras.args;
 
 		dispatch(record);
+	};
+
+	const log = (input: LogInput): void => {
+		emit(input.level, input.message, {
+			context: input.context,
+			meta: input.meta,
+			kind: input.kind,
+			args: input.args,
+		});
 	};
 
 	const mark = (
 		label: string,
 		options: { level?: LogLevel } = {},
-	): ((extra?: Record<string, unknown>) => void) => {
+	): ((extra?: Record<string, unknown>) => number) => {
 		const markLevel = options.level ?? "info";
-		// Skip the timing measurement entirely if the level isn't enabled -
-		// the timer would never produce a record anyway.
-		if (!isLevelEnabled(markLevel)) {
-			return () => undefined;
-		}
+		// Always measure so the caller gets the duration back even when the
+		// level is disabled; only the record emission is gated.
 		const start = monotonicNow();
 		return (extra) => {
 			const durationMs = Math.round((monotonicNow() - start) * 100) / 100;
-			log(markLevel, label, { durationMs, ...extra });
+			emit(markLevel, label, { context: { durationMs, ...extra } });
+			return durationMs;
 		};
 	};
 
 	const flush = async (): Promise<TransportStatus[]> => {
 		// Resolve each transport's flush independently; collect per-transport
-		// status so callers can detect partial drain failures.
+		// status so callers can detect partial drain failures. Snapshot the
+		// array in case a transport mutates the set mid-flush.
 		return Promise.all(
-			transports.map(async (t): Promise<TransportStatus> => {
+			[...transports].map(async (t): Promise<TransportStatus> => {
 				if (!t.flush) return { name: t.name, ok: true };
 				try {
 					await t.flush();
@@ -188,29 +270,65 @@ export function createLogger(config: LoggerConfig = {}): Logger {
 		);
 	};
 
-	const child = (childContext: Record<string, unknown>): Logger => {
-		const childConfig: LoggerConfig = {
-			level,
-			context: { ...baseContext, ...childContext },
-			transports,
+	const addTransport = (transport: Transport): void => {
+		transports.push(transport);
+	};
+
+	const removeTransport = (name?: string): number => {
+		if (name === undefined) {
+			const removed = transports.length;
+			transports.length = 0;
+			return removed;
+		}
+		let removed = 0;
+		for (let i = transports.length - 1; i >= 0; i--) {
+			if (transports[i]?.name === name) {
+				transports.splice(i, 1);
+				removed++;
+			}
+		}
+		return removed;
+	};
+
+	const child = (
+		nameOrContext: string | Record<string, unknown>,
+		childContext?: Record<string, unknown>,
+	): Logger => {
+		const isNamed = typeof nameOrContext === "string";
+		const nextScope = isNamed
+			? scope
+				? `${scope}${scopeSeparator}${nameOrContext}`
+				: nameOrContext
+			: scope;
+		const mergedContext = isNamed
+			? { ...baseContext, ...childContext }
+			: { ...baseContext, ...nameOrContext };
+
+		return buildLogger({
+			threshold,
+			baseContext: mergedContext,
+			scope: nextScope,
+			scopeSeparator,
+			transports, // shared reference: runtime add/remove propagates
+			formatTimestamp,
 			now,
-		};
-		// `exactOptionalPropertyTypes` rejects passing `undefined` explicitly,
-		// so only attach onTransportError if the parent had one.
-		if (onTransportError) childConfig.onTransportError = onTransportError;
-		return createLogger(childConfig);
+			onTransportError,
+		});
 	};
 
 	return {
 		isLevelEnabled,
-		trace: (m, c) => log("trace", m, c),
-		debug: (m, c) => log("debug", m, c),
-		info: (m, c) => log("info", m, c),
-		warn: (m, c) => log("warn", m, c),
-		error: (m, c) => log("error", m, c),
-		fatal: (m, c) => log("fatal", m, c),
-		child,
+		trace: (m, c) => emit("trace", m, { context: c }),
+		debug: (m, c) => emit("debug", m, { context: c }),
+		info: (m, c) => emit("info", m, { context: c }),
+		warn: (m, c) => emit("warn", m, { context: c }),
+		error: (m, c) => emit("error", m, { context: c }),
+		fatal: (m, c) => emit("fatal", m, { context: c }),
+		log,
+		child: child as Logger["child"],
 		mark,
+		addTransport,
+		removeTransport,
 		flush,
 	};
 }

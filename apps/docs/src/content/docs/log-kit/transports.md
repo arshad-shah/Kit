@@ -17,6 +17,26 @@ consoleTransport({ pretty: process.env.NODE_ENV !== "production" });
 
 Levels are routed to the matching `console` method - `trace`/`debug` → `console.debug`, `info` → `console.info`, `warn` → `console.warn`, `error`/`fatal` → `console.error`. Logging infra and browser devtools both pick this up correctly.
 
+### Stream routing
+
+By default (`stream: "auto"`) this gives the conventional CLI split: `warn`/`error`/`fatal` go to **stderr**, everything else to **stdout**. Force one stream when you need to:
+
+```ts
+consoleTransport({ stream: "stdout" }); // everything to stdout
+consoleTransport({ stream: "stderr" }); // everything to stderr (e.g. logs must not pollute piped stdout)
+```
+
+### printf-style messages
+
+When a record carries `args` (set via [`log()`](/log-kit/host-loggers)), the console transport substitutes `%s %d %i %f %j %o %O %%` and appends any leftover args, like `console.log`:
+
+```ts
+log.log({ level: "info", message: "built %s in %dms", args: ["index.js", 12] });
+// pretty → "built index.js in 12ms"
+```
+
+JSON output keeps the template and `args` separate so aggregators can group by template.
+
 ## HTTP
 
 Batches records and POSTs them as JSON arrays. Designed for fire-and-forget telemetry to log aggregators:

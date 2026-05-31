@@ -38,16 +38,19 @@ config.DATABASE_URL; // string, validated as URL
 ## What you get
 
 - **Schema-agnostic** - works with Zod, Valibot, ArkType, or anything with a `parse(input) → output` method
-- **Layered sources** - load from multiple places; later sources override earlier ones
-- **Soft source failures** - a missing `.env` or unreachable remote endpoint doesn't crash the load
+- **Flat or structured sources** - flat env maps *and* nested, module-based config files (`app.config.ts`); see [Module-based config](/config-kit/module-config)
+- **Layered sources** - load from multiple places; later sources override earlier ones (flat sources merge key-by-key, structured sources deep-merge)
+- **Soft source failures** - a missing `.env`, config file, or unreachable remote endpoint doesn't crash the load
+- **Strict or warn** - throw on invalid config (default) or downgrade to a logged warning with `mode: "warn"`
+- **Host-controlled errors** - `onValidationError` hands you the raw validation error (e.g. a `ZodError`) to render your own message
 - **Secret-safe errors** - validation errors redact quoted values by default so secrets don't end up in logs
 - **Optional logger** - pass any object with `info/warn/error` methods (compatible with log-kit) for source-load diagnostics
 
 ## What it doesn't do
 
 - No automatic file-watching/reload (config is captured at boot; for hot reload, build it yourself)
-- No nested config files (sources return flat `Record<string, string>`; the schema decides the output shape)
-- No defaults system - use the schema's defaults (Zod has `.default()`, Valibot has `optional()` with a fallback)
+- No built-in TypeScript compiler for config files - `configFileSource` takes a `load` hook so you bring esbuild/jiti (or rely on native import for `.js`/`.mjs`/`.cjs`/`.json`)
+- No defaults beyond `objectSource` and your schema's defaults (Zod has `.default()`, Valibot has `optional()` with a fallback)
 
 ## Composition with log-kit
 

@@ -22,6 +22,17 @@ end({ count: result.length });
 
 The returned function captures the start time. Calling it emits a record with `durationMs` automatically computed and any extra context merged in.
 
+It also **returns the measured duration**, so you can reuse the number without reading it back off the record:
+
+```ts
+const end = log.mark("query.users");
+const result = await db.query(sql);
+const ms = end({ count: result.length }); // logs, and ms is yours to reuse
+metrics.observe("db_query_ms", ms);
+```
+
+The duration is returned even when the mark's level is disabled (no record is emitted in that case), so timing code composes regardless of log level.
+
 ## Custom level
 
 Marks default to `info` level. For high-volume measurements, drop to `debug`:

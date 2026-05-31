@@ -12,7 +12,7 @@ Foundation packages for side projects, each independently versioned and publisha
 | [`@arshad-shah/store-kit`](./packages/store-kit) | Typed Zustand factory with persistence and migrations | ~1.2 KB |
 | [`@arshad-shah/fetch-kit`](./packages/fetch-kit) | Typed `fetch` client with retries, caching, dedupe, GraphQL, schema validation, React hooks | ~3 KB core, ~0.75 KB hooks |
 | [`@arshad-shah/log-kit`](./packages/log-kit) | Structured logger with pluggable transports and perf markers | ~1.1 KB core |
-| [`@arshad-shah/config-kit`](./packages/config-kit) | Typed env loading from `.env`, `process.env`, and remote sources | ~1.4 KB |
+| [`@arshad-shah/config-kit`](./packages/config-kit) | Typed config loading from `.env`, `process.env`, remote sources, and module-based config files | ~2 KB |
 
 Each package can be used on its own. They compose cleanly when combined - fetch-kit can take a log-kit `Logger` for telemetry, config-kit can take one for source-load diagnostics, but neither has a hard dependency.
 
