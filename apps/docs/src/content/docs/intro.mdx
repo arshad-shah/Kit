@@ -17,7 +17,7 @@ It's deliberately scoped. Not a framework. Not a state-management opinion. Not a
 		A Zustand factory with the conventions you'd reach for anyway: persistence, versioned migrations, devtools, and a `reset()` that clears storage too. Same Zustand API otherwise — anything you know about Zustand still applies.
 	</KitCard>
 	<KitCard title="fetch-kit" icon="lucide:cloud-download" href="/fetch-kit/overview/">
-		A typed `fetch` wrapper plus two React hooks. Retries with backoff, timeouts via `AbortController`, an error class hierarchy you can `instanceof`, optional schema validation, request/response interceptors. The React layer is a separate subpath — non-React consumers don't pay for it.
+		A typed `fetch` wrapper plus three React hooks. Retries with backoff, timeouts via `AbortController`, an error class hierarchy you can `instanceof`, response caching, in-flight request dedupe, a GraphQL helper, optional schema validation, request/response interceptors. The React layer is a separate subpath — non-React consumers don't pay for it.
 	</KitCard>
 	<KitCard title="log-kit" icon="lucide:scroll-text" href="/log-kit/overview/">
 		A structured logger with pluggable transports (console, HTTP, file, Datadog), composed however you want. Six levels, child loggers, performance markers, and per-transport failure isolation so a flaky shipping endpoint can't take your app down.
@@ -29,7 +29,7 @@ It's deliberately scoped. Not a framework. Not a state-management opinion. Not a
 
 ## What it isn't
 
-- Not a TanStack Query replacement. fetch-kit doesn't cache or deduplicate. If you need that, pair it with TanStack Query — or don't, most apps don't need it.
+- Not a TanStack Query replacement. fetch-kit has a simple response cache and in-flight dedupe, but it doesn't do normalized caching, optimistic updates with rollback, or background refetching. If you need those, pair it with TanStack Query — or don't, most apps don't need it.
 - Not a Redux. store-kit doesn't try to be the one true source of state. Use as many stores as you want.
 - Not a winston / pino replacement on the server. log-kit is small enough to use everywhere; if you need Node-specific transports beyond what's bundled, write a custom transport (it's an interface).
 - Not a router, form library, or component framework. Compose with whatever you're already using.

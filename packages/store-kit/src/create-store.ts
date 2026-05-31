@@ -192,9 +192,13 @@ export function createStore<TState extends object, TActions extends object = Rec
 			? loadPersistedState(storageKey, storage, version, persist, reportError)
 			: null;
 
+	// Captured from the initializer so reset() can restore the action methods.
+	// Actions close over the store's stable `set`/`get`, so the same object stays
+	// valid for the store's lifetime.
+	let actionObj: TActions = {} as TActions;
 	const initializer: StateCreator<TState & TActions, [], []> = (set, get) => {
 		const baseState = { ...initialFrozen, ...hydrated } as TState;
-		const actionObj = actions
+		actionObj = actions
 			? actions(
 					set as unknown as Parameters<NonNullable<typeof actions>>[0],
 					get as unknown as Parameters<NonNullable<typeof actions>>[1],
@@ -257,7 +261,10 @@ export function createStore<TState extends object, TActions extends object = Rec
 			restore();
 			unsubscribePersist = null;
 		}
-		useStore.setState(initialFrozen as TState & TActions, true);
+		// Replace the whole store, but merge the action methods back in - a bare
+		// `replace: true` with the state-only `initialFrozen` would delete every
+		// action from the store, breaking any consumer holding one.
+		useStore.setState({ ...initialFrozen, ...actionObj } as TState & TActions, true);
 		if (persist && storage) {
 			try {
 				const removed = storage.removeItem(storageKey);

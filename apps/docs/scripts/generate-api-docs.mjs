@@ -73,22 +73,27 @@ for (const pkg of PACKAGES) {
 	if (existsSync(outDir)) rmSync(outDir, { recursive: true, force: true });
 	await mkdir(outDir, { recursive: true });
 
-	const app = await Application.bootstrapWithPlugins({
-		entryPoints: pkg.entryPoints,
-		tsconfig: pkg.tsconfig,
-		plugin: ["typedoc-plugin-markdown"],
-		out: outDir,
-		readme: "none",
-		hideBreadcrumbs: true,
-		hidePageHeader: true,
-		excludePrivate: true,
-		excludeInternal: true,
-		excludeExternals: true,
-		gitRevision: "master",
-		// Emit module entry pages as `index.md` (default is `README.md`); README
-		// would slug to `/readme/` rather than the directory's root URL.
-		entryFileName: "index.md",
-	});
+	const app = await Application.bootstrapWithPlugins(
+		// `hideBreadcrumbs`, `hidePageHeader`, and `entryFileName` are declared by
+		// typedoc-plugin-markdown and aren't in TypeDoc's core option types, so the
+		// literal is cast to keep them while satisfying the checker.
+		/** @type {Partial<import("typedoc").TypeDocOptions>} */ ({
+			entryPoints: pkg.entryPoints,
+			tsconfig: pkg.tsconfig,
+			plugin: ["typedoc-plugin-markdown"],
+			out: outDir,
+			readme: "none",
+			hideBreadcrumbs: true,
+			hidePageHeader: true,
+			excludePrivate: true,
+			excludeInternal: true,
+			excludeExternals: true,
+			gitRevision: "master",
+			// Emit module entry pages as `index.md` (default is `README.md`); README
+			// would slug to `/readme/` rather than the directory's root URL.
+			entryFileName: "index.md",
+		}),
+	);
 	app.options.addReader(new TSConfigReader());
 
 	const project = await app.convert();
@@ -108,6 +113,7 @@ for (const pkg of PACKAGES) {
 	const apiSlugRoot = `/${pkg.name}/api`;
 
 	// (2) Walk every generated .md file: rewrite links + add frontmatter.
+	/** @param {string} dir */
 	async function processRecursive(dir) {
 		for (const entry of await readdir(dir)) {
 			const full = join(dir, entry);

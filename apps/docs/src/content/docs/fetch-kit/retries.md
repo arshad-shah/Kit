@@ -62,4 +62,4 @@ await api.get("/x", {
 
 ## What you might want next
 
-If you need request deduplication, optimistic updates, or background refetching, that's TanStack Query territory. fetch-kit deliberately stops at "get the request through, or fail clearly".
+fetch-kit covers retries, response caching, and in-flight request deduplication out of the box. If you need richer server-state management - optimistic updates with rollback, normalized caches, or background refetching - that's TanStack Query territory. fetch-kit deliberately stops short of that.

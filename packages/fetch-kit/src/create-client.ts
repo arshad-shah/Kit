@@ -82,13 +82,23 @@ function combineSignals(...signals: (AbortSignal | undefined)[]): CombinedSignal
  * - `text/*` → string
  * - Empty body or 204/205 → `null`
  * - Anything else → `Blob`
+ *
+ * When `tolerant` is set, a body that claims to be JSON but fails to parse is
+ * returned as its raw text instead of throwing. This is used for error
+ * responses, where a malformed body must not mask the typed `HttpError`.
  */
-async function parseResponseBody(response: Response): Promise<unknown> {
+async function parseResponseBody(response: Response, tolerant = false): Promise<unknown> {
 	if (response.status === 204 || response.status === 205) return null;
 	const contentType = response.headers.get("content-type") ?? "";
 	if (contentType.includes("application/json") || contentType.includes("graphql-response+json")) {
 		const text = await response.text();
-		return text.length === 0 ? null : JSON.parse(text);
+		if (text.length === 0) return null;
+		try {
+			return JSON.parse(text);
+		} catch (err) {
+			if (tolerant) return text;
+			throw err;
+		}
 	}
 	if (contentType.startsWith("text/")) return response.text();
 	return response.blob();
@@ -233,9 +243,15 @@ export function createClient(config: ClientConfig = {}): Client {
 		);
 
 		try {
-			const headers: Record<string, string> = { ...defaultHeaders, ...options.headers };
 			const [encodedBody, bodyHeaders] = encodeBody(body);
-			Object.assign(headers, bodyHeaders, options.headers);
+			// Inferred body headers (e.g. `Content-Type: application/json`) are the
+			// lowest priority: an explicit Content-Type set on the client defaults
+			// or per request must win over the one we guessed from the body shape.
+			const headers: Record<string, string> = {
+				...bodyHeaders,
+				...defaultHeaders,
+				...options.headers,
+			};
 
 			if (auth) {
 				const result = await auth();
@@ -283,7 +299,9 @@ export function createClient(config: ClientConfig = {}): Client {
 				if (result) response = result;
 			}
 
-			const parsedBody = await parseResponseBody(response);
+			// Error bodies are parsed tolerantly so an unparseable payload surfaces
+			// the HttpError (with the status) rather than an opaque JSON parse error.
+			const parsedBody = await parseResponseBody(response, !response.ok);
 
 			if (!response.ok) {
 				throw new HttpError(response.status, response.statusText, response, parsedBody);

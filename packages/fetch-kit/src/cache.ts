@@ -28,11 +28,18 @@ export function createMemoryCache(maxSize: number, now: () => number = Date.now)
 			return entry;
 		},
 		set(key, entry) {
+			// A non-positive budget means "cache nothing" - skip the insert entirely
+			// so the map can't grow past a zero/negative ceiling.
+			if (maxSize < 1) return;
 			if (store.has(key)) {
 				store.delete(key);
-			} else if (store.size >= maxSize) {
-				const oldest = store.keys().next().value;
-				if (oldest !== undefined) store.delete(oldest);
+			} else {
+				// Evict least-recently-used entries until there's room for one more.
+				while (store.size >= maxSize) {
+					const oldest = store.keys().next().value;
+					if (oldest === undefined) break;
+					store.delete(oldest);
+				}
 			}
 			store.set(key, entry);
 		},

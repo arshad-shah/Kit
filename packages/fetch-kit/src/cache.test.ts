@@ -43,6 +43,14 @@ describe("createMemoryCache", () => {
 		expect(cache.get("c")?.data).toBe(3);
 	});
 
+	it("caches nothing when maxSize is zero (does not grow unbounded)", () => {
+		const cache = createMemoryCache(0);
+		cache.set("a", { data: 1, expiresAt: Date.now() + 1000 });
+		cache.set("b", { data: 2, expiresAt: Date.now() + 1000 });
+		expect(cache.get("a")).toBeUndefined();
+		expect(cache.get("b")).toBeUndefined();
+	});
+
 	it("re-inserting an existing key does not evict others", () => {
 		const cache = createMemoryCache(2);
 		cache.set("a", { data: 1, expiresAt: Date.now() + 1000 });

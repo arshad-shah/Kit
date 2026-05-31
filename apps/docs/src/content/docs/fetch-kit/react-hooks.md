@@ -1,12 +1,12 @@
 ---
 title: React hooks
-description: useFetch and useMutation - declarative state for the simple cases.
+description: useFetch, useMutation, and useGraphQL - declarative state for the simple cases.
 ---
 
 The hooks live on a separate subpath so non-React consumers don't pay for them:
 
 ```ts
-import { useFetch, useMutation } from "@arshad-shah/fetch-kit/react";
+import { useFetch, useMutation, useGraphQL } from "@arshad-shah/fetch-kit/react";
 ```
 
 ## useFetch
@@ -59,11 +59,31 @@ function CreateUserForm() {
 
 `mutate` returns a promise - you can `await` it for sequencing, or rely on `onSuccess` for cleanup.
 
+## useGraphQL
+
+For declarative GraphQL queries. Like `useFetch`, it runs on mount, aborts on unmount, and drops stale responses:
+
+```tsx
+function Header() {
+  const { data, loading, error, refetch } = useGraphQL<{ me: User }>(
+    api,
+    `query Me { me { id name } }`,
+    { variables: {}, enabled: true },
+  );
+
+  if (loading) return <Spinner />;
+  if (error) return <ErrorView error={error} onRetry={refetch} />;
+  return <Avatar user={data!.me} />;
+}
+```
+
+It requires a client configured with `graphqlEndpoint` (or pass a per-request `url`). Like `useFetch`, it supports `enabled` and `deps`. A GraphQL response carrying an `errors` array surfaces as a [`GraphQLError`](/fetch-kit/errors/).
+
 ## What about caching?
 
-These hooks intentionally don't cache. Each component instance owns its request. If two components on the same page both call `useFetch(api, "/users/me")`, two requests go out.
+When the client is configured with `cache`, GET requests and GraphQL queries are cached and deduped automatically, so two components calling `useFetch(api, "/users/me")` share one in-flight request and one cache entry. Mutations are never cached.
 
-If you want one shared cached result across components, use TanStack Query - it's purpose-built for that. Pass fetch-kit's client into your query function:
+If you need richer server-state management - normalized caches, optimistic updates with rollback, or background refetching - use TanStack Query. Pass fetch-kit's client into your query function:
 
 ```ts
 useQuery({
