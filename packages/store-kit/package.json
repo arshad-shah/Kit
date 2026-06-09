@@ -60,7 +60,7 @@
 		"size-limit": "12.1.0",
 		"tsup": "8.5.1",
 		"typescript": "5.7.2",
-		"vitest": "3.2.4",
+		"vitest": "3.2.6",
 		"zustand": "5.0.13"
 	},
 	"size-limit": [

@@ -41,7 +41,7 @@
 		"publint": "0.3.16",
 		"tsup": "8.5.1",
 		"typescript": "5.7.2",
-		"vitest": "3.2.4"
+		"vitest": "3.2.6"
 	},
 	"pnpm": {
 		"onlyBuiltDependencies": ["@biomejs/biome", "esbuild", "sharp"]
