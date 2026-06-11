@@ -25,7 +25,7 @@ You don't have to use them. The core `Client` is framework-agnostic. The hooks a
 
 ## Why a custom logger, not pino or winston
 
-- **Size.** pino is ~6 KB minified+gzipped on the client; winston is much larger and Node-only. log-kit is 1.4 KB and runs in browsers, workers, edge runtimes, and Node.
+- **Size.** pino is ~6 KB minified+gzipped on the client; winston is much larger and Node-only. log-kit's core is ~1.8 KB and runs in browsers, workers, edge runtimes, and Node.
 - **Transport isolation.** A flaky HTTP shipper can't take your app down - each transport is wrapped, errors are swallowed, and the rest keep running.
 - **No async hooks, no Node.js-only APIs.** Same logger code works in your edge function and your dev server.
 

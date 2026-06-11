@@ -20,10 +20,10 @@ It's deliberately scoped. Not a framework. Not a state-management opinion. Not a
 		A typed `fetch` wrapper plus three React hooks. Retries with backoff, timeouts via `AbortController`, an error class hierarchy you can `instanceof`, response caching, in-flight request dedupe, a GraphQL helper, optional schema validation, request/response interceptors. The React layer is a separate subpath — non-React consumers don't pay for it.
 	</KitCard>
 	<KitCard title="log-kit" icon="lucide:scroll-text" href="/log-kit/overview/">
-		A structured logger with pluggable transports (console, HTTP, file, Datadog), composed however you want. Six levels, child loggers, performance markers, and per-transport failure isolation so a flaky shipping endpoint can't take your app down.
+		A structured logger with pluggable transports (console, HTTP, file, Datadog), composed however you want. Six levels (plus `silent`), named child scopes, performance markers, and per-transport failure isolation so a flaky shipping endpoint can't take your app down. Designed to wrap cleanly under a host's own logger.
 	</KitCard>
 	<KitCard title="config-kit" icon="lucide:settings-2" href="/config-kit/overview/">
-		Loads config from env vars, dotenv files, static objects, or remote sources, then validates with whatever schema library you already use (Zod, Valibot, anything with a `parse` interface). Source ordering, override semantics, and a single typed config object at the end.
+		Loads config from env vars, dotenv files, static objects, remote sources, or module-based config files (`app.config.ts`), then validates with whatever schema library you already use (Zod, Valibot, anything with a `parse` interface). Source ordering, override semantics, and a single typed config object at the end.
 	</KitCard>
 </CardGrid>
 
