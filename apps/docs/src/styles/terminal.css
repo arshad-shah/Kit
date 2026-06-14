@@ -1,5 +1,9 @@
 /*
- * kit docs - GitHub-Dark / GitHub-Light terminal aesthetic, dual-theme.
+ * kit docs - "Forest slate" terminal aesthetic, dual-theme.
+ *
+ * Palette: deep evergreen primary (--sl-color-accent) on slate-greens, with a
+ * warm sand secondary (--kit-accent-2). Grounded and organic - deliberately
+ * no neon, no gradient sheen, no AI violet/cyan.
  *
  * Tokens:
  *   --sl-color-*   Starlight built-ins (Starlight reads these; we override per theme)
@@ -19,86 +23,88 @@
 /* ---------- Dark theme ---------- */
 :root,
 :root[data-theme="dark"] {
-	--sl-color-bg: #0d0f14;
-	--sl-color-bg-nav: #0d0f14;
-	--sl-color-bg-sidebar: #0d0f14;
-	--sl-color-bg-inline-code: #161b22;
-	--sl-color-bg-accent: #161b22;
+	--sl-color-bg: #0e1512;
+	--sl-color-bg-nav: #0e1512;
+	--sl-color-bg-sidebar: #0e1512;
+	--sl-color-bg-inline-code: #18211d;
+	--sl-color-bg-accent: #18211d;
 
-	--sl-color-text: #c9d1d9;
-	--sl-color-text-accent: #388bfd;
-	--sl-color-text-invert: #0d0f14;
-	--sl-color-white: #f0f6fc;
-	--sl-color-gray-1: #f0f6fc;
-	--sl-color-gray-2: #c9d1d9;
-	--sl-color-gray-3: #8b949e;
-	--sl-color-gray-4: #6e7681;
-	--sl-color-gray-5: #484f58;
-	--sl-color-gray-6: #30363d;
-	--sl-color-gray-7: #21262d;
-	--sl-color-black: #0d0f14;
+	--sl-color-text: #d6e0da;
+	--sl-color-text-accent: #43c08a;
+	--sl-color-text-invert: #0e1512;
+	--sl-color-white: #eef4f0;
+	--sl-color-gray-1: #eef4f0;
+	--sl-color-gray-2: #d6e0da;
+	--sl-color-gray-3: #93a59c;
+	--sl-color-gray-4: #6d7f76;
+	--sl-color-gray-5: #4b5a53;
+	--sl-color-gray-6: #2c3833;
+	--sl-color-gray-7: #1d2823;
+	--sl-color-black: #0e1512;
 
-	--sl-color-accent-low: #0c2d6b;
-	--sl-color-accent: #388bfd;
-	--sl-color-accent-high: #58a6ff;
+	--sl-color-accent-low: #103a29;
+	--sl-color-accent: #2f9e6f;
+	--sl-color-accent-high: #43c08a;
 
-	--sl-color-hairline: #21262d;
-	--sl-color-hairline-light: #30363d;
-	--sl-color-hairline-shade: #161b22;
+	--sl-color-hairline: #1d2823;
+	--sl-color-hairline-light: #2c3833;
+	--sl-color-hairline-shade: #18211d;
 
-	--sl-color-asides-text-accent: #58a6ff;
-	--sl-color-blue: #58a6ff;
-	--sl-color-blue-low: #0c2d6b;
-	--sl-color-blue-high: #79c0ff;
+	--sl-color-asides-text-accent: #43c08a;
+	--sl-color-blue: #43c08a;
+	--sl-color-blue-low: #103a29;
+	--sl-color-blue-high: #6fd8a8;
 
-	--kit-code-block-bg: #0a0c10;
-	--kit-sidebar-active-text: #f0f6fc;
-	--kit-sidebar-active-bg: rgba(56, 139, 253, 0.12);
-	--kit-selection-bg: rgba(56, 139, 253, 0.3);
-	--kit-selection-text: #f0f6fc;
-	--kit-link-glow: rgba(56, 139, 253, 0.4);
+	--kit-accent-2: #d9b380;
+	--kit-code-block-bg: #0a0f0d;
+	--kit-sidebar-active-text: #eef4f0;
+	--kit-sidebar-active-bg: rgba(47, 158, 111, 0.14);
+	--kit-selection-bg: rgba(47, 158, 111, 0.3);
+	--kit-selection-text: #eef4f0;
+	--kit-link-glow: rgba(47, 158, 111, 0.4);
 }
 
-/* ---------- Light theme (GitHub Light lineage) ---------- */
+/* ---------- Light theme ---------- */
 :root[data-theme="light"] {
 	--sl-color-bg: #ffffff;
 	--sl-color-bg-nav: #ffffff;
 	--sl-color-bg-sidebar: #ffffff;
-	--sl-color-bg-inline-code: #f6f8fa;
-	--sl-color-bg-accent: #ddf4ff;
+	--sl-color-bg-inline-code: #f0f5f2;
+	--sl-color-bg-accent: #dcefe5;
 
-	--sl-color-text: #24292f;
-	--sl-color-text-accent: #0969da;
+	--sl-color-text: #1c2a24;
+	--sl-color-text-accent: #1a7a52;
 	--sl-color-text-invert: #ffffff;
-	--sl-color-white: #1f2328;
-	--sl-color-gray-1: #1f2328;
-	--sl-color-gray-2: #24292f;
-	--sl-color-gray-3: #57606a;
-	--sl-color-gray-4: #6e7781;
-	--sl-color-gray-5: #8c959f;
-	--sl-color-gray-6: #d0d7de;
-	--sl-color-gray-7: #eaeef2;
+	--sl-color-white: #14211b;
+	--sl-color-gray-1: #14211b;
+	--sl-color-gray-2: #1c2a24;
+	--sl-color-gray-3: #4f6258;
+	--sl-color-gray-4: #6d7f76;
+	--sl-color-gray-5: #94a59d;
+	--sl-color-gray-6: #cbd8d1;
+	--sl-color-gray-7: #e7efea;
 	--sl-color-black: #ffffff;
 
-	--sl-color-accent-low: #ddf4ff;
-	--sl-color-accent: #0969da;
-	--sl-color-accent-high: #0550ae;
+	--sl-color-accent-low: #dcefe5;
+	--sl-color-accent: #1a7a52;
+	--sl-color-accent-high: #115e3f;
 
-	--sl-color-hairline: #d0d7de;
-	--sl-color-hairline-light: #afb8c1;
-	--sl-color-hairline-shade: #eaeef2;
+	--sl-color-hairline: #cbd8d1;
+	--sl-color-hairline-light: #aebfb6;
+	--sl-color-hairline-shade: #e7efea;
 
-	--sl-color-asides-text-accent: #0550ae;
-	--sl-color-blue: #0969da;
-	--sl-color-blue-low: #ddf4ff;
-	--sl-color-blue-high: #0550ae;
+	--sl-color-asides-text-accent: #115e3f;
+	--sl-color-blue: #1a7a52;
+	--sl-color-blue-low: #dcefe5;
+	--sl-color-blue-high: #115e3f;
 
-	--kit-code-block-bg: #f6f8fa;
-	--kit-sidebar-active-text: #0550ae;
-	--kit-sidebar-active-bg: rgba(9, 105, 218, 0.1);
-	--kit-selection-bg: rgba(9, 105, 218, 0.2);
-	--kit-selection-text: #0550ae;
-	--kit-link-glow: rgba(9, 105, 218, 0.35);
+	--kit-accent-2: #b07d3a;
+	--kit-code-block-bg: #f0f5f2;
+	--kit-sidebar-active-text: #115e3f;
+	--kit-sidebar-active-bg: rgba(26, 122, 82, 0.1);
+	--kit-selection-bg: rgba(26, 122, 82, 0.2);
+	--kit-selection-text: #115e3f;
+	--kit-link-glow: rgba(26, 122, 82, 0.35);
 }
 
 /* ---------- Typography ---------- */
