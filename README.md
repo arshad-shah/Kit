@@ -3,7 +3,7 @@
 Foundation packages for side projects, each independently versioned and publishable to npm.
 
 [![CI](https://github.com/arshad-shah/kit/actions/workflows/ci.yml/badge.svg)](https://github.com/arshad-shah/kit/actions/workflows/ci.yml)
-[![Docs](https://img.shields.io/badge/docs-kit.arshadshah.com-blue)](https://kit.arshadshah.com)
+[![Docs](https://img.shields.io/badge/docs-kit.arshadshah.com-2f9e6f)](https://kit.arshadshah.com)
 
 ## Packages
 

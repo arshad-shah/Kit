@@ -38,7 +38,7 @@ for (const { src, out, width, height } of targets) {
 	// density 192 oversamples the SVG before sharp resizes; gives a crisper
 	// raster than the default 72dpi rasterization of typical favicon SVGs.
 	await sharp(svg, { density: 192 })
-		.resize(width, height, { fit: "contain", background: { r: 13, g: 15, b: 20, alpha: 1 } })
+		.resize(width, height, { fit: "contain", background: { r: 14, g: 21, b: 18, alpha: 1 } })
 		.png({ compressionLevel: 9 })
 		.toFile(out);
 	console.log(`generated ${out.replace(docsRoot, ".")}`);
