@@ -34,14 +34,14 @@
 		"clean": "pnpm -r exec rm -rf dist node_modules .turbo coverage && rm -rf node_modules"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "1.9.4",
-		"@changesets/changelog-github": "0.5.1",
-		"@changesets/cli": "2.31.0",
-		"@types/node": "22.18.13",
-		"publint": "0.3.16",
+		"@biomejs/biome": "2.5.5",
+		"@changesets/changelog-github": "0.7.0",
+		"@changesets/cli": "2.31.1",
+		"@types/node": "26.1.1",
+		"publint": "0.3.22",
 		"tsup": "8.5.1",
-		"typescript": "5.7.2",
-		"vitest": "3.2.6"
+		"typescript": "7.0.2",
+		"vitest": "4.1.10"
 	},
 	"pnpm": {
 		"onlyBuiltDependencies": ["@biomejs/biome", "esbuild", "sharp"]
